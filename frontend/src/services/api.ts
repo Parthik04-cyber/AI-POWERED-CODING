@@ -18,14 +18,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle responses
+// Handle responses — only force-logout when a token WAS provided and explicitly rejected
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const hadToken = !!error.config?.headers?.Authorization;
+    const status = error.response?.status;
+    const backendMessage = (error.response?.data?.error || error.response?.data?.message || '').toString().toLowerCase();
+    const isTokenRejected =
+      backendMessage.includes('invalid or expired token') ||
+      backendMessage.includes('jwt expired') ||
+      backendMessage.includes('invalid token') ||
+      backendMessage.includes('token expired');
+
+    // Do not clear session for every 401. Some endpoints can return 401 for reasons
+    // unrelated to token validity (for example role/route guards).
+    if (status === 401 && hadToken && isTokenRejected) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -39,6 +52,7 @@ export const authAPI = {
     api.post('/auth/login', data),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data: any) => api.put('/auth/profile', data),
+  getUsers: () => api.get('/auth/users'),
 };
 
 // Problem APIs
@@ -64,6 +78,56 @@ export const submissionAPI = {
     api.get(`/submissions/problem/${problemId}`, { params: { skip, limit } }),
   getLeaderboard: (limit = 10) =>
     api.get('/submissions/leaderboard', { params: { limit } }),
+  getAllSubmissionsAdmin: (skip = 0, limit = 20) =>
+    api.get('/submissions/admin/all', { params: { skip, limit } }),
+};
+
+export const leaderboardAPI = {
+  getLeaderboard: (limit = 10) => api.get('/leaderboard', { params: { limit } }),
+};
+
+export const executeAPI = {
+  runCode: (data: { code: string; language: string; input?: string }) =>
+    api.post('/execute', data),
+};
+
+// Store APIs
+export const storeAPI = {
+  getOverview: () => api.get('/store/overview'),
+  getHistory: (limit = 30) => api.get('/store/history', { params: { limit } }),
+  redeemItem: (itemId: string) => api.post('/store/redeem', { itemId }),
+  subscribePremium: (plan: 'monthly' | 'yearly') => api.post('/store/premium/subscribe', { plan }),
+  claimDailyLogin: () => api.post('/store/daily-login'),
+  spinLuckyWheel: () => api.post('/store/lucky-spin'),
+  rewardActivity: (activityType: 'contest' | 'interview', referenceId: string) =>
+    api.post('/store/earn/activity', { activityType, referenceId }),
+  getCoinLeaderboard: (limit = 20) => api.get('/store/coin-leaderboard', { params: { limit } }),
+  getAchievements: () => api.get('/store/achievements'),
+  getPremiumOverview: () => api.get('/store/overview'),
+  subscribePremiumPlan: (plan: 'monthly' | 'yearly') => api.post('/store/premium/subscribe', { plan }),
+};
+
+// Discuss / Community APIs
+export const discussAPI = {
+  getPosts: (params?: { category?: string; skip?: number; limit?: number }) =>
+    api.get('/discuss/posts', { params }),
+  getPost: (id: string) =>
+    api.get(`/discuss/posts/${id}`),
+  createPost: (data: {
+    title: string;
+    description: string;
+    category: string;
+    tags?: string[];
+    type?: string;
+    linkedProblemId?: string;
+    company?: string;
+    pollOptions?: string[];
+  }) => api.post('/discuss/posts', data),
+  upvotePost: (id: string) => api.post(`/discuss/posts/${id}/upvote`),
+  getTrendingTopics: () => api.get('/discuss/trending'),
+  getAISuggestion: (postId: string) => api.post(`/discuss/posts/${postId}/ai-suggest`),
+  findBuddy: (data: { topics: string[]; level: string; availability: string }) =>
+    api.post('/discuss/buddy-finder', data),
 };
 
 export default api;

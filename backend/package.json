@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest"
+    "test": "jest",
+    "seed:admin": "ts-node src/scripts/seedDefaultAdmin.ts"
   },
   "keywords": [
     "coding",
@@ -23,15 +24,16 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.1.0",
-    "mongoose": "^8.0.0",
-    "openai": "^4.20.0"
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.20.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20.10.0",
+    "@types/pg": "^8.15.5",
     "@types/cors": "^2.8.17",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",

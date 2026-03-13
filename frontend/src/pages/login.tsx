@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Layout from '@/layouts/MainLayout';
 import { authAPI } from '@/services/api';
 import { useAuthStore } from '@/utils/store';
@@ -26,13 +26,13 @@ const Login: React.FC = () => {
     try {
       const { data } = await authAPI.login(formData);
       
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
       
       setUser(data.user);
       setToken(data.token);
-      
-      router.push('/problems');
+
+      router.push(data.user?.role === 'admin' ? '/admin/dashboard' : '/problems');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
@@ -42,55 +42,67 @@ const Login: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-md mx-auto mt-20 p-8 bg-dark-secondary rounded-lg border border-dark-tertiary">
-        <h2 className="text-3xl font-bold mb-8 text-center">Login</h2>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded text-red-300">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
+      <div className="flex items-center justify-center h-full px-4 py-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+          <div className="mb-4 text-center">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Log in to your CodeMaster account</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
-          </div>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="jane@example.com"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
 
-        <p className="text-center mt-4 text-gray-400">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-accent hover:underline">
-            Register here
-          </Link>
-        </p>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-slate-700">Password</label>
+                <Link href="/forgot-password" className="text-xs text-accent hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                placeholder="Your password"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2 mt-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold rounded-xl shadow-btn-primary hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm"
+            >
+              {isLoading ? 'Logging in...' : 'Log In'}
+            </button>
+          </form>
+
+          <p className="text-center mt-4 text-sm text-slate-500">
+            Don't have an account?{' '}
+            <Link href="/register" className="text-accent font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </Layout>
   );

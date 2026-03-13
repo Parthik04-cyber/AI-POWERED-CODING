@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Layout from '@/layouts/MainLayout';
 import { authAPI } from '@/services/api';
 import { useAuthStore } from '@/utils/store';
@@ -47,79 +47,93 @@ const Register: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-md mx-auto mt-20 p-8 bg-dark-secondary rounded-lg border border-dark-tertiary">
-        <h2 className="text-3xl font-bold mb-8 text-center">Sign Up</h2>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded text-red-300">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Full Name</label>
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
+      <div className="flex items-center justify-center h-full px-4 py-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+          <div className="mb-4 text-center">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Create an account</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Start mastering coding interviews today</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Username</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
-          </div>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                required
+                placeholder="Jane Doe"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white focus:border-accent focus:outline-none"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Username</label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                placeholder="janedoe"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {isLoading ? 'Creating account...' : 'Sign Up'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="jane@example.com"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
 
-        <p className="text-center mt-4 text-gray-400">
-          Already have an account?{' '}
-          <Link href="/login" className="text-accent hover:underline">
-            Login here
-          </Link>
-        </p>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-slate-700">Password</label>
+                <Link href="/forgot-password" className="text-xs text-accent hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                placeholder="Create a password"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-sm focus:border-accent focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2 mt-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold rounded-xl shadow-btn-primary hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm"
+            >
+              {isLoading ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </form>
+
+          <p className="text-center mt-4 text-sm text-slate-500">
+            Already have an account?{' '}
+            <Link href="/login" className="text-accent font-medium hover:underline">
+              Log in
+            </Link>
+          </p>
+        </div>
       </div>
     </Layout>
   );

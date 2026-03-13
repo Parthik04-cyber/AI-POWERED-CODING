@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Layout from '@/layouts/MainLayout';
-import { submissionAPI } from '@/services/api';
+import { leaderboardAPI } from '@/services/api';
 
 const Leaderboard: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -15,7 +15,7 @@ const Leaderboard: React.FC = () => {
   const loadLeaderboard = async () => {
     try {
       setIsLoading(true);
-      const { data } = await submissionAPI.getLeaderboard(50);
+      const { data } = await leaderboardAPI.getLeaderboard(50);
       setLeaderboard(data.leaderboard);
     } catch (error) {
       console.error('Failed to load leaderboard:', error);

@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Editor from '@monaco-editor/react';
 import Layout from '@/layouts/MainLayout';
-import { problemAPI, submissionAPI } from '@/services/api';
+import { executeAPI, problemAPI, submissionAPI } from '@/services/api';
 import { useEditorStore, useAuthStore } from '@/utils/store';
 
 const EditorPage: React.FC = () => {
-  const params = useParams();
   const router = useRouter();
+  const { id } = router.query;
   const { user } = useAuthStore();
   const { code, language, output, isRunning, setCode, setLanguage, setOutput, setIsRunning } = useEditorStore();
 
   const [problem, setProblem] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [customInput, setCustomInput] = useState('');
   const [testResults, setTestResults] = useState<any>(null);
 
   useEffect(() => {
@@ -23,11 +24,15 @@ const EditorPage: React.FC = () => {
       return;
     }
     loadProblem();
-  }, [user, router]);
+  }, [id, user, router]);
 
   const loadProblem = async () => {
+    if (!id || typeof id !== 'string') {
+      return;
+    }
+
     try {
-      const { data } = await problemAPI.getProblemById(params.id as string);
+      const { data } = await problemAPI.getProblemById(id);
       setProblem(data);
       if (!code) {
         setCode(getTemplateCode(language));
@@ -58,17 +63,59 @@ const EditorPage: React.FC = () => {
   const handleSubmit = async () => {
     try {
       setIsRunning(true);
+      if (!id || typeof id !== 'string') {
+        setOutput('Error: Invalid problem ID');
+        return;
+      }
       const { data } = await submissionAPI.submitCode({
-        problemId: params.id as string,
+        problemId: id,
         code,
         language,
       });
       setTestResults(data);
-      setOutput(`Submission ID: ${data._id}\nStatus: ${data.status}`);
+      setOutput(`Submission ID: ${data._id}\nStatus: ${data.status}\nEvaluating test cases...`);
+      await pollSubmissionResult(data._id);
     } catch (error: any) {
       setOutput(`Error: ${error.response?.data?.error || 'Submission failed'}`);
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const handleRunCode = async () => {
+    try {
+      setIsRunning(true);
+      const { data } = await executeAPI.runCode({
+        code,
+        language,
+        input: customInput,
+      });
+
+      const runOutput = data.stdout || data.compile_output || data.runtime_error || 'No output';
+      setOutput(`Run Result: ${data.status?.description || 'Unknown'}\n\n${runOutput}`);
+    } catch (error: any) {
+      setOutput(`Error: ${error.response?.data?.error || 'Code run failed'}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const pollSubmissionResult = async (submissionId: string) => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const { data } = await submissionAPI.getSubmissionById(submissionId);
+      setTestResults(data);
+
+      if (data.status !== 'PENDING') {
+        const feedback = data.aiFeedback
+          ? `\n\nAI Feedback:\n${data.aiFeedback.complexity || ''}\n${(data.aiFeedback.suggestions || []).join('\n- ')}`
+          : '';
+
+        setOutput(
+          `Submission ID: ${data._id}\nStatus: ${data.status}\nTests: ${data.testsPassed}/${data.totalTests}${feedback}`
+        );
+        return;
+      }
     }
   };
 
@@ -140,6 +187,14 @@ const EditorPage: React.FC = () => {
               </select>
 
               <button
+                onClick={handleRunCode}
+                disabled={isRunning}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {isRunning ? 'Running...' : 'Run Code'}
+              </button>
+
+              <button
                 onClick={handleSubmit}
                 disabled={isRunning}
                 className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
@@ -163,6 +218,13 @@ const EditorPage: React.FC = () => {
               />
             </div>
 
+            <textarea
+              value={customInput}
+              onChange={(e) => setCustomInput(e.target.value)}
+              placeholder="Optional stdin for Run Code"
+              className="w-full mb-4 h-20 px-3 py-2 bg-dark-secondary border border-dark-tertiary rounded-lg text-sm"
+            />
+
             <div className="bg-dark-secondary border border-dark-tertiary rounded-lg p-4 max-h-40 overflow-y-auto">
               <h3 className="font-bold mb-2">Output</h3>
               <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap break-words">{output || 'Run your code to see output...'}</pre>
@@ -171,6 +233,14 @@ const EditorPage: React.FC = () => {
                   <p className="text-sm">
                     Tests Passed: <span className={testResults.status === 'SUCCESS' ? 'text-green-400' : 'text-red-400'}>{testResults.testsPassed}/{testResults.totalTests}</span>
                   </p>
+                  {testResults.aiFeedback && (
+                    <div className="mt-2 text-sm text-gray-300">
+                      <p>{testResults.aiFeedback.complexity}</p>
+                      {(testResults.aiFeedback.suggestions || []).length > 0 && (
+                        <p className="mt-1">- {(testResults.aiFeedback.suggestions || []).join('\n- ')}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -71,3 +71,31 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
     res.status(400).json({ error: error.message });
   }
 };
+
+export const executeCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { code, language, input } = req.body;
+
+    if (!code || !language) {
+      res.status(400).json({ error: 'Code and language are required' });
+      return;
+    }
+
+    const result = await submissionService.executeCode(code, language, input || '');
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to execute code' });
+  }
+};
+
+export const getAllSubmissionsAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const skip = parseInt(req.query.skip as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const result = await submissionService.getAllSubmissions(skip, limit);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};

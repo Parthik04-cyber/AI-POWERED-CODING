@@ -69,3 +69,12 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     res.status(400).json({ error: error.message });
   }
 };
+
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await authService.getAllUsers();
+    res.status(200).json({ users });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};

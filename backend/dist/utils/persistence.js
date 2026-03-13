@@ -1,0 +1,293 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.saveUser = exports.createUser = exports.emailOrUsernameExists = exports.usernameExists = exports.getUserByEmail = exports.getUserById = exports.mapLeaderboardRow = exports.mapStoreTransactionRow = exports.mapSubmissionRow = exports.mapProblemRow = exports.mapUserRow = exports.generateId = void 0;
+const crypto_1 = require("crypto");
+const database_1 = require("../config/database");
+const toDate = (value) => {
+    if (!value) {
+        return undefined;
+    }
+    return value instanceof Date ? value : new Date(String(value));
+};
+const toStringArray = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((entry) => String(entry));
+    }
+    return [];
+};
+const parseActivityRefs = (rows) => rows.map((row) => `${row.activity_type}:${row.reference_id}`);
+const generateId = () => (0, crypto_1.randomUUID)();
+exports.generateId = generateId;
+const mapUserRow = (row, relations = {}, includePassword = false) => ({
+    _id: String(row.id),
+    username: row.username,
+    email: row.email,
+    ...(includePassword ? { password: row.password } : {}),
+    fullName: row.full_name,
+    role: row.role,
+    profileImage: row.profile_image || undefined,
+    bio: row.bio || undefined,
+    problemsSolved: Number(row.problems_solved || 0),
+    totalSubmissions: Number(row.total_submissions || 0),
+    score: Number(row.score || 0),
+    coins: Number(row.coins || 0),
+    isPremium: Boolean(row.is_premium),
+    premiumPlan: row.premium_plan || undefined,
+    premiumExpiresAt: toDate(row.premium_expires_at),
+    dailyLoginStreak: Number(row.daily_login_streak || 0),
+    codingStreak: Number(row.coding_streak || 0),
+    lastDailyLoginAt: toDate(row.last_daily_login_at),
+    lastSolvedProblemAt: toDate(row.last_solved_problem_at),
+    lastLuckySpinAt: toDate(row.last_lucky_spin_at),
+    badges: toStringArray(row.badges),
+    solvedProblemIds: relations.solvedProblemIds || [],
+    completedActivityRefs: relations.completedActivityRefs || [],
+    createdAt: toDate(row.created_at) || new Date(),
+    updatedAt: toDate(row.updated_at) || new Date(),
+});
+exports.mapUserRow = mapUserRow;
+const mapProblemRow = (row) => ({
+    _id: String(row.id),
+    title: row.title,
+    description: row.description,
+    difficulty: row.difficulty,
+    category: row.category,
+    tags: toStringArray(row.tags),
+    examples: Array.isArray(row.examples) ? row.examples : [],
+    constraints: toStringArray(row.constraints),
+    testCases: Array.isArray(row.test_cases) ? row.test_cases : [],
+    timeLimit: Number(row.time_limit || 0),
+    memoryLimit: Number(row.memory_limit || 0),
+    submissionCount: Number(row.submission_count || 0),
+    acceptedCount: Number(row.accepted_count || 0),
+    createdAt: toDate(row.created_at) || new Date(),
+    updatedAt: toDate(row.updated_at) || new Date(),
+});
+exports.mapProblemRow = mapProblemRow;
+const mapSubmissionRow = (row) => ({
+    _id: String(row.id),
+    userId: row.user_ref_id
+        ? {
+            _id: String(row.user_ref_id),
+            username: row.user_ref_username,
+            ...(row.user_ref_email ? { email: row.user_ref_email } : {}),
+        }
+        : String(row.user_id),
+    problemId: row.problem_ref_id
+        ? {
+            _id: String(row.problem_ref_id),
+            title: row.problem_ref_title,
+            ...(row.problem_ref_difficulty ? { difficulty: row.problem_ref_difficulty } : {}),
+        }
+        : String(row.problem_id),
+    code: row.code,
+    language: row.language,
+    status: row.status,
+    executionTime: Number(row.execution_time || 0),
+    memory: Number(row.memory || 0),
+    output: row.output || '',
+    error: row.error || undefined,
+    testsPassed: Number(row.tests_passed || 0),
+    totalTests: Number(row.total_tests || 0),
+    aiFeedback: row.ai_feedback || undefined,
+    createdAt: toDate(row.created_at) || new Date(),
+    updatedAt: toDate(row.updated_at) || new Date(),
+});
+exports.mapSubmissionRow = mapSubmissionRow;
+const mapStoreTransactionRow = (row) => ({
+    _id: String(row.id),
+    userId: String(row.user_id),
+    type: row.type,
+    itemId: row.item_id || undefined,
+    title: row.title,
+    coinsDelta: Number(row.coins_delta || 0),
+    balanceAfter: Number(row.balance_after || 0),
+    metadata: row.metadata || {},
+    createdAt: toDate(row.created_at) || new Date(),
+    updatedAt: toDate(row.updated_at) || new Date(),
+});
+exports.mapStoreTransactionRow = mapStoreTransactionRow;
+const mapLeaderboardRow = (row) => ({
+    _id: String(row.id),
+    userId: String(row.user_id),
+    username: row.username,
+    score: Number(row.score || 0),
+    problemsSolved: Number(row.problems_solved || 0),
+    totalSubmissions: Number(row.total_submissions || 0),
+    createdAt: toDate(row.created_at) || new Date(),
+    updatedAt: toDate(row.updated_at) || new Date(),
+});
+exports.mapLeaderboardRow = mapLeaderboardRow;
+const getUserRelations = async (userId, client) => {
+    const [solvedRows, activityRows] = await Promise.all([
+        (0, database_1.query)('SELECT problem_id FROM user_solved_problems WHERE user_id = $1 ORDER BY solved_at ASC', [userId], client),
+        (0, database_1.query)('SELECT activity_type, reference_id FROM user_completed_activities WHERE user_id = $1 ORDER BY created_at ASC', [userId], client),
+    ]);
+    return {
+        solvedProblemIds: solvedRows.rows.map((row) => String(row.problem_id)),
+        completedActivityRefs: parseActivityRefs(activityRows.rows),
+    };
+};
+const getUserById = async (userId, options = {}) => {
+    const result = await (0, database_1.query)('SELECT * FROM users WHERE id = $1', [userId], options.client);
+    const row = result.rows[0];
+    if (!row) {
+        return null;
+    }
+    const relations = options.includeRelations === false ? { solvedProblemIds: [], completedActivityRefs: [] } : await getUserRelations(userId, options.client);
+    return (0, exports.mapUserRow)(row, relations, options.includePassword);
+};
+exports.getUserById = getUserById;
+const getUserByEmail = async (email, options = {}) => {
+    const result = await (0, database_1.query)('SELECT * FROM users WHERE email = $1', [email], options.client);
+    const row = result.rows[0];
+    if (!row) {
+        return null;
+    }
+    const relations = options.includeRelations === false ? { solvedProblemIds: [], completedActivityRefs: [] } : await getUserRelations(String(row.id), options.client);
+    return (0, exports.mapUserRow)(row, relations, options.includePassword);
+};
+exports.getUserByEmail = getUserByEmail;
+const usernameExists = async (username, client) => {
+    const result = await (0, database_1.query)('SELECT 1 FROM users WHERE username = $1 LIMIT 1', [username], client);
+    return (result.rowCount || 0) > 0;
+};
+exports.usernameExists = usernameExists;
+const emailOrUsernameExists = async (email, username, client) => {
+    const result = await (0, database_1.query)('SELECT 1 FROM users WHERE email = $1 OR username = $2 LIMIT 1', [email, username], client);
+    return (result.rowCount || 0) > 0;
+};
+exports.emailOrUsernameExists = emailOrUsernameExists;
+const createUser = async (data, client) => {
+    const userId = data._id || (0, exports.generateId)();
+    const result = await (0, database_1.query)(`
+      INSERT INTO users (
+        id, username, email, password, full_name, role, profile_image, bio,
+        problems_solved, total_submissions, score, coins, is_premium, premium_plan,
+        premium_expires_at, daily_login_streak, coding_streak, last_daily_login_at,
+        last_solved_problem_at, last_lucky_spin_at, badges, created_at, updated_at
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18,
+        $19, $20, $21, NOW(), NOW()
+      )
+      RETURNING *
+    `, [
+        userId,
+        data.username,
+        data.email,
+        data.password,
+        data.fullName,
+        data.role || 'user',
+        data.profileImage || null,
+        data.bio || null,
+        data.problemsSolved || 0,
+        data.totalSubmissions || 0,
+        data.score || 0,
+        data.coins || 0,
+        data.isPremium || false,
+        data.premiumPlan || null,
+        data.premiumExpiresAt || null,
+        data.dailyLoginStreak || 0,
+        data.codingStreak || 0,
+        data.lastDailyLoginAt || null,
+        data.lastSolvedProblemAt || null,
+        data.lastLuckySpinAt || null,
+        data.badges || [],
+    ], client);
+    const created = (0, exports.mapUserRow)(result.rows[0], {
+        solvedProblemIds: data.solvedProblemIds || [],
+        completedActivityRefs: data.completedActivityRefs || [],
+    }, true);
+    if ((data.solvedProblemIds && data.solvedProblemIds.length) || (data.completedActivityRefs && data.completedActivityRefs.length)) {
+        await (0, exports.saveUser)(created, client);
+        return (await (0, exports.getUserById)(userId, { includePassword: true, client }));
+    }
+    return created;
+};
+exports.createUser = createUser;
+const saveUser = async (user, client) => {
+    await (0, database_1.query)(`
+      UPDATE users
+      SET
+        username = $2,
+        email = $3,
+        password = COALESCE($4, password),
+        full_name = $5,
+        role = $6,
+        profile_image = $7,
+        bio = $8,
+        problems_solved = $9,
+        total_submissions = $10,
+        score = $11,
+        coins = $12,
+        is_premium = $13,
+        premium_plan = $14,
+        premium_expires_at = $15,
+        daily_login_streak = $16,
+        coding_streak = $17,
+        last_daily_login_at = $18,
+        last_solved_problem_at = $19,
+        last_lucky_spin_at = $20,
+        badges = $21,
+        updated_at = NOW()
+      WHERE id = $1
+    `, [
+        user._id,
+        user.username,
+        user.email,
+        user.password || null,
+        user.fullName,
+        user.role,
+        user.profileImage || null,
+        user.bio || null,
+        user.problemsSolved || 0,
+        user.totalSubmissions || 0,
+        user.score || 0,
+        user.coins || 0,
+        user.isPremium || false,
+        user.premiumPlan || null,
+        user.premiumExpiresAt || null,
+        user.dailyLoginStreak || 0,
+        user.codingStreak || 0,
+        user.lastDailyLoginAt || null,
+        user.lastSolvedProblemAt || null,
+        user.lastLuckySpinAt || null,
+        user.badges || [],
+    ], client);
+    await (0, database_1.query)('DELETE FROM user_solved_problems WHERE user_id = $1', [user._id], client);
+    if (user.solvedProblemIds.length > 0) {
+        const solvedValues = [];
+        const solvedPlaceholders = user.solvedProblemIds
+            .map((problemId, index) => {
+            const baseIndex = index * 2;
+            solvedValues.push(user._id, problemId);
+            return `($${baseIndex + 1}, $${baseIndex + 2})`;
+        })
+            .join(', ');
+        await (0, database_1.query)(`INSERT INTO user_solved_problems (user_id, problem_id) VALUES ${solvedPlaceholders} ON CONFLICT (user_id, problem_id) DO NOTHING`, solvedValues, client);
+    }
+    await (0, database_1.query)('DELETE FROM user_completed_activities WHERE user_id = $1', [user._id], client);
+    if (user.completedActivityRefs.length > 0) {
+        const activityValues = [];
+        const activityPlaceholders = user.completedActivityRefs
+            .map((activityRef, index) => {
+            const [activityType, ...referenceParts] = activityRef.split(':');
+            const referenceId = referenceParts.join(':');
+            const baseIndex = index * 3;
+            activityValues.push(user._id, activityType, referenceId);
+            return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3})`;
+        })
+            .join(', ');
+        await (0, database_1.query)(`
+        INSERT INTO user_completed_activities (user_id, activity_type, reference_id)
+        VALUES ${activityPlaceholders}
+        ON CONFLICT (user_id, activity_type, reference_id) DO NOTHING
+      `, activityValues, client);
+    }
+    return (await (0, exports.getUserById)(user._id, { includePassword: Boolean(user.password), client }));
+};
+exports.saveUser = saveUser;
+//# sourceMappingURL=persistence.js.map

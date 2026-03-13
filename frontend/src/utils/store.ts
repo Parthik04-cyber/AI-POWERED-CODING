@@ -8,11 +8,17 @@ export interface User {
   fullName?: string;
   score?: number;
   problemsSolved?: number;
+  coins?: number;
+  codingStreak?: number;
+  isPremium?: boolean;
+  premiumExpiresAt?: string;
+  badges?: string[];
 }
 
 interface AuthStore {
   user: User | null;
   token: string | null;
+  initialized: boolean;
   isLoading: boolean;
   error: string | null;
   setUser: (user: User | null) => void;
@@ -26,6 +32,7 @@ interface AuthStore {
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   token: null,
+  initialized: false,
   isLoading: false,
   error: null,
 
@@ -35,21 +42,34 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setError: (error) => set({ error }),
 
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     set({ user: null, token: null });
   },
 
   init: () => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    // Clear any tokens left in localStorage from the old persistence scheme
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
-    if (token && user) {
-      set({
-        token,
-        user: JSON.parse(user),
-      });
+    try {
+      const token = sessionStorage.getItem('token');
+      const user = sessionStorage.getItem('user');
+
+      if (token && user) {
+        set({
+          token,
+          user: JSON.parse(user),
+          initialized: true,
+        });
+        return;
+      }
+    } catch (_error) {
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
     }
+
+    set({ initialized: true });
   },
 }));
 

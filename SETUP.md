@@ -6,7 +6,7 @@ This guide will help you set up and run the AI-Powered Coding Interview Platform
 
 - Node.js (v18+) - [Download](https://nodejs.org/)
 - npm (comes with Node.js)
-- MongoDB (v5+) - Official [MongoDB](https://www.mongodb.com/) or use Docker
+- PostgreSQL (v15+) - Official [PostgreSQL](https://www.postgresql.org/download/) or use Docker
 - Git - [Download](https://git-scm.com/)
 
 ## Quick Start (Recommended with Docker)
@@ -44,7 +44,7 @@ docker-compose up --build
 ```
 
 This will:
-- Start MongoDB on port 27017
+- Start PostgreSQL on port 5432
 - Build and start the backend on port 5000
 - Create the database automatically
 
@@ -62,18 +62,19 @@ Frontend will run on `http://localhost:3000`
 
 ## Manual Setup (Without Docker)
 
-### Step 1: Install MongoDB
+### Step 1: Install PostgreSQL
 
-#### Option A: Local MongoDB
-1. Download MongoDB from [mongodb.com](https://www.mongodb.com/try/download/community)
-2. Install and start MongoDB service
-3. Verify it's running on `mongodb://localhost:27017`
+#### Option A: Local PostgreSQL
+1. Download PostgreSQL from [postgresql.org](https://www.postgresql.org/download/)
+2. Install and start PostgreSQL service
+3. Create the `codemaster` database
+4. Update `DATABASE_URL` in `backend/.env` with your actual username and password
 
-#### Option B: MongoDB Atlas (Cloud)
-1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a cluster
+#### Option B: Managed PostgreSQL
+1. Provision a PostgreSQL instance from your provider of choice
+2. Create the `codemaster` database
 3. Get your connection string
-4. Update `MONGODB_URI` in `backend/.env`
+4. Update `DATABASE_URL` in `backend/.env`
 
 ### Step 2: Backend Setup
 
@@ -252,10 +253,12 @@ curl http://localhost:5000/api/problems
 
 ## Troubleshooting
 
-### MongoDB Connection Issues
-- Verify MongoDB is running: `mongosh` should connect
-- Check `MONGODB_URI` in `.env`
-- For Atlas: Ensure IP whitelist includes your machine
+### PostgreSQL Connection Issues
+- Verify PostgreSQL is running and reachable on the host/port from `DATABASE_URL`
+- Check `DATABASE_URL` in `.env`
+- If you see `password authentication failed for user`, your local PostgreSQL password does not match the value in `DATABASE_URL`
+- For the bundled Docker setup, use `postgresql://postgres:postgres@localhost:5432/codemaster`
+- For a local PostgreSQL install, replace `postgres:postgres` with your actual local username and password
 
 ### Backend Won't Start
 ```bash

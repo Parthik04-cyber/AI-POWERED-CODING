@@ -1,0 +1,1 @@
+{"version":3,"file":"Leaderboard.d.ts","sourceRoot":"","sources":["../../src/models/Leaderboard.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,YAAY;IAC3B,GAAG,EAAE,MAAM,CAAC;IACZ,MAAM,EAAE,MAAM,CAAC;IACf,QAAQ,EAAE,MAAM,CAAC;IACjB,KAAK,EAAE,MAAM,CAAC;IACd,cAAc,EAAE,MAAM,CAAC;IACvB,SAAS,EAAE,IAAI,CAAC;IAChB,gBAAgB,EAAE,MAAM,CAAC;IACzB,SAAS,EAAE,IAAI,CAAC;CACjB"}

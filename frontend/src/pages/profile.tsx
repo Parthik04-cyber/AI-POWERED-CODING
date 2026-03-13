@@ -1,25 +1,30 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Layout from '@/layouts/MainLayout';
 import { authAPI, submissionAPI } from '@/services/api';
 import { useAuthStore } from '@/utils/store';
 
 const Profile: React.FC = () => {
   const router = useRouter();
-  const { user, token } = useAuthStore();
+  const { token, initialized } = useAuthStore();
   const [profile, setProfile] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!initialized) {
+      return;
+    }
+
     if (!token) {
       router.push('/login');
       return;
     }
+
     loadProfile();
-  }, [token, router]);
+  }, [initialized, token, router]);
 
   const loadProfile = async () => {
     try {
