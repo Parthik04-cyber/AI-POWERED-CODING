@@ -25,6 +25,11 @@ export declare const getUserByEmail: (email: string, options?: {
 }) => Promise<IUser | null>;
 export declare const usernameExists: (username: string, client?: PoolClient) => Promise<boolean>;
 export declare const emailOrUsernameExists: (email: string, username: string, client?: PoolClient) => Promise<boolean>;
+export declare const getAnyAdminUser: (options?: {
+    excludeUserId?: string;
+    includePassword?: boolean;
+    client?: PoolClient;
+}) => Promise<IUser | null>;
 export declare const createUser: (data: Partial<IUser> & {
     username: string;
     email: string;

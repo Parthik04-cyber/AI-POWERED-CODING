@@ -11,6 +11,7 @@ import submissionRoutes from './routes/submissionRoutes';
 import leaderboardRoutes from './routes/leaderboardRoutes';
 import executeRoutes from './routes/executeRoutes';
 import storeRoutes from './routes/storeRoutes';
+import contestRoutes from './routes/contestRoutes';
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/execute', executeRoutes);
 app.use('/api/store', storeRoutes);
+app.use('/api/contests', contestRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

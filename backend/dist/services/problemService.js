@@ -2,6 +2,46 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const database_1 = require("../config/database");
 const persistence_1 = require("../utils/persistence");
+const parseJsonArrayInput = (value, fieldName) => {
+    try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) {
+            throw new Error(`${fieldName} must be a JSON array`);
+        }
+        return parsed;
+    }
+    catch (_error) {
+        throw new Error(`${fieldName} must be a valid JSON array`);
+    }
+};
+const normalizeExamples = (value, fieldName) => {
+    let rawItems;
+    if (value === undefined || value === null) {
+        return [];
+    }
+    if (typeof value === 'string') {
+        rawItems = parseJsonArrayInput(value, fieldName);
+    }
+    else if (Array.isArray(value)) {
+        rawItems = value;
+    }
+    else {
+        throw new Error(`${fieldName} must be an array`);
+    }
+    return rawItems.map((item, index) => {
+        const candidate = item;
+        if (!candidate || typeof candidate !== 'object') {
+            throw new Error(`${fieldName}[${index}] must be an object with input and output`);
+        }
+        if (candidate.input === undefined || candidate.output === undefined) {
+            throw new Error(`${fieldName}[${index}] must include input and output`);
+        }
+        return {
+            input: typeof candidate.input === 'string' ? candidate.input : JSON.stringify(candidate.input),
+            output: typeof candidate.output === 'string' ? candidate.output : JSON.stringify(candidate.output),
+        };
+    });
+};
 class ProblemService {
     async getAllProblems(skip = 0, limit = 10, difficulty, category) {
         const conditions = [];
@@ -36,6 +76,8 @@ class ProblemService {
         return (0, persistence_1.mapProblemRow)(result.rows[0]);
     }
     async createProblem(problemData) {
+        const normalizedExamples = normalizeExamples(problemData.examples, 'examples');
+        const normalizedTestCases = normalizeExamples(problemData.testCases, 'testCases');
         const result = await (0, database_1.query)(`
         INSERT INTO problems (
           id, title, description, difficulty, category, tags, examples, constraints,
@@ -50,9 +92,9 @@ class ProblemService {
             problemData.difficulty,
             problemData.category,
             problemData.tags || [],
-            problemData.examples || [],
+            JSON.stringify(normalizedExamples),
             problemData.constraints || [],
-            problemData.testCases || [],
+            JSON.stringify(normalizedTestCases),
             problemData.timeLimit ?? 5,
             problemData.memoryLimit ?? 256,
             problemData.submissionCount ?? 0,
@@ -79,7 +121,15 @@ class ProblemService {
         if (entries.length === 0) {
             return this.getProblemById(problemId);
         }
-        const values = entries.map(([, value]) => value);
+        const values = entries.map(([key, value]) => {
+            if (key === 'examples') {
+                return JSON.stringify(normalizeExamples(value, 'examples'));
+            }
+            if (key === 'testCases') {
+                return JSON.stringify(normalizeExamples(value, 'testCases'));
+            }
+            return value;
+        });
         const setClause = entries.map(([key], index) => `${columnMap[key]} = $${index + 2}`).join(', ');
         const result = await (0, database_1.query)(`UPDATE problems SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`, [problemId, ...values]);
         if (result.rowCount === 0) {

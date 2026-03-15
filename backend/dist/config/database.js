@@ -255,12 +255,16 @@ const initializeSchema = async () => {
         description TEXT,
         status TEXT NOT NULL DEFAULT 'draft',
         reward_coins INTEGER NOT NULL DEFAULT 0,
+        participants_target INTEGER NOT NULL DEFAULT 0,
+        problem_count INTEGER NOT NULL DEFAULT 0,
         starts_at TIMESTAMPTZ,
         ends_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `,
+        `ALTER TABLE contests ADD COLUMN IF NOT EXISTS participants_target INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE contests ADD COLUMN IF NOT EXISTS problem_count INTEGER NOT NULL DEFAULT 0`,
         `
       CREATE TABLE IF NOT EXISTS discussions (
         id TEXT PRIMARY KEY,
@@ -287,6 +291,8 @@ const initializeSchema = async () => {
         'CREATE INDEX IF NOT EXISTS idx_store_transactions_user_created_at ON store_transactions(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_contests_starts_at ON contests(starts_at)',
+        'CREATE INDEX IF NOT EXISTS idx_contests_status ON contests(status)',
     ];
     for (const statement of schemaStatements) {
         await getPool().query(statement);

@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { createUser, getUserByEmail, saveUser, usernameExists } from '../utils/persistence';
+import { createUser, getAnyAdminUser, getUserByEmail, saveUser, usernameExists } from '../utils/persistence';
 
 interface EnsureAdminResult {
   created: boolean;
@@ -32,14 +32,17 @@ const generateUniqueUsername = async (baseUsername: string): Promise<string> => 
 };
 
 export const ensureDefaultAdminAccount = async (): Promise<EnsureAdminResult> => {
+  const currentAdmin = await getAnyAdminUser();
   const existingAdmin = await getUserByEmail(DEFAULT_ADMIN_EMAIL, { includePassword: true });
 
   if (existingAdmin) {
     let updated = false;
 
     if (existingAdmin.role !== DEFAULT_ADMIN_ROLE) {
-      existingAdmin.role = DEFAULT_ADMIN_ROLE;
-      updated = true;
+      if (!currentAdmin) {
+        existingAdmin.role = DEFAULT_ADMIN_ROLE;
+        updated = true;
+      }
     }
 
     const isSamePassword = existingAdmin.password
@@ -64,6 +67,15 @@ export const ensureDefaultAdminAccount = async (): Promise<EnsureAdminResult> =>
       updated,
       email: existingAdmin.email,
       username: existingAdmin.username,
+    };
+  }
+
+  if (currentAdmin) {
+    return {
+      created: false,
+      updated: false,
+      email: currentAdmin.email,
+      username: currentAdmin.username,
     };
   }
 

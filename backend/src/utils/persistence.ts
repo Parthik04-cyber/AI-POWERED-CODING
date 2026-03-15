@@ -195,10 +195,69 @@ export const emailOrUsernameExists = async (email: string, username: string, cli
   return (result.rowCount || 0) > 0;
 };
 
+export const getAnyAdminUser = async (
+  options: { excludeUserId?: string; includePassword?: boolean; client?: PoolClient } = {}
+): Promise<IUser | null> => {
+  const conditions = ['role = $1'];
+  const params: unknown[] = ['admin'];
+
+  if (options.excludeUserId) {
+    conditions.push(`id <> $${params.length + 1}`);
+    params.push(options.excludeUserId);
+  }
+
+  const result = await query<any>(
+    `SELECT * FROM users WHERE ${conditions.join(' AND ')} ORDER BY created_at ASC LIMIT 1`,
+    params,
+    options.client
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    return null;
+  }
+
+  return mapUserRow(row, { solvedProblemIds: [], completedActivityRefs: [] }, options.includePassword);
+};
+
+const ensureAdminRoleAssignable = async (
+  requestedRole: 'user' | 'admin',
+  options: { existingUserId?: string; client?: PoolClient } = {}
+): Promise<void> => {
+  if (requestedRole !== 'admin') {
+    return;
+  }
+
+  if (!options.existingUserId) {
+    const existingAdmin = await getAnyAdminUser({ client: options.client });
+    if (existingAdmin) {
+      throw new Error('Only one admin account is allowed');
+    }
+    return;
+  }
+
+  const currentRoleResult = await query<{ role: 'user' | 'admin' }>(
+    'SELECT role FROM users WHERE id = $1 LIMIT 1',
+    [options.existingUserId],
+    options.client
+  );
+  const currentRole = currentRoleResult.rows[0]?.role;
+
+  if (currentRole !== 'admin') {
+    const existingAdmin = await getAnyAdminUser({ excludeUserId: options.existingUserId, client: options.client });
+    if (existingAdmin) {
+      throw new Error('Only one admin account is allowed');
+    }
+  }
+};
+
 export const createUser = async (
   data: Partial<IUser> & { username: string; email: string; password: string; fullName: string; role?: 'user' | 'admin' },
   client?: PoolClient
 ): Promise<IUser> => {
+  const targetRole = data.role || 'user';
+  await ensureAdminRoleAssignable(targetRole, { client });
+
   const userId = data._id || generateId();
   const result = await query<any>(
     `
@@ -222,7 +281,7 @@ export const createUser = async (
       data.email,
       data.password,
       data.fullName,
-      data.role || 'user',
+      targetRole,
       data.profileImage || null,
       data.bio || null,
       data.problemsSolved || 0,
@@ -256,6 +315,8 @@ export const createUser = async (
 };
 
 export const saveUser = async (user: IUser, client?: PoolClient): Promise<IUser> => {
+  await ensureAdminRoleAssignable(user.role, { existingUserId: user._id, client });
+
   await query(
     `
       UPDATE users

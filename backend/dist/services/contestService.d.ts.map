@@ -1,0 +1,1 @@
+{"version":3,"file":"contestService.d.ts","sourceRoot":"","sources":["../../src/services/contestService.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,qBAAqB,EAA4C,MAAM,mBAAmB,CAAC;AAsDpG,cAAM,cAAc;IACZ,gBAAgB,IAAI,OAAO,CAAC,qBAAqB,CAAC;CA+CzD;;AAED,wBAAoC"}

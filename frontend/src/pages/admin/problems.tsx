@@ -189,6 +189,10 @@ const AdminProblemsPage: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-slate-900">{editingProblemId ? 'Edit problem' : 'Add problem'}</h2>
               <p className="mt-2 text-sm text-slate-600">Keep creation and maintenance separate from dashboard monitoring.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Example and test-case values are stored as JSON objects: [{'{'}"input": "...", "output": "..."{'}'}].
+                You can enter plain text in each field; JSON strings are also supported.
+              </p>
             </div>
             {message ? <p className="rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700">{message}</p> : null}
           </div>
@@ -199,19 +203,19 @@ const AdminProblemsPage: React.FC = () => {
               onChange={(event) => setProblemForm({ ...problemForm, title: event.target.value })}
               placeholder="Title"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <input
               value={problemForm.category}
               onChange={(event) => setProblemForm({ ...problemForm, category: event.target.value })}
               placeholder="Category"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <select
               value={problemForm.difficulty}
               onChange={(event) => setProblemForm({ ...problemForm, difficulty: event.target.value })}
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900"
             >
               <option value="Easy">Easy</option>
               <option value="Medium">Medium</option>
@@ -221,42 +225,42 @@ const AdminProblemsPage: React.FC = () => {
               value={problemForm.tags}
               onChange={(event) => setProblemForm({ ...problemForm, tags: event.target.value })}
               placeholder="Tags (comma separated)"
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <textarea
               value={problemForm.description}
               onChange={(event) => setProblemForm({ ...problemForm, description: event.target.value })}
               placeholder="Problem description"
               required
-              className="min-h-32 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 md:col-span-2"
+              className="min-h-32 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500 md:col-span-2"
             />
             <input
               value={problemForm.exampleInput}
               onChange={(event) => setProblemForm({ ...problemForm, exampleInput: event.target.value })}
               placeholder="Example input"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <input
               value={problemForm.exampleOutput}
               onChange={(event) => setProblemForm({ ...problemForm, exampleOutput: event.target.value })}
               placeholder="Example output"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <input
               value={problemForm.testInput}
               onChange={(event) => setProblemForm({ ...problemForm, testInput: event.target.value })}
               placeholder="Test case input"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <input
               value={problemForm.testOutput}
               onChange={(event) => setProblemForm({ ...problemForm, testOutput: event.target.value })}
               placeholder="Test case output"
               required
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500"
             />
             <div className="flex flex-wrap gap-3 md:col-span-2">
               <button type="submit" className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
@@ -281,7 +285,7 @@ const AdminProblemsPage: React.FC = () => {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search title, category, or tag"
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 md:max-w-sm"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 caret-slate-900 placeholder:text-slate-500 md:max-w-sm"
             />
           </div>
 

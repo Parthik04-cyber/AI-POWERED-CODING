@@ -2,6 +2,56 @@ import { IProblem } from '../models/Problem';
 import { query } from '../config/database';
 import { generateId, mapProblemRow } from '../utils/persistence';
 
+type ProblemExampleLike = {
+  input?: unknown;
+  output?: unknown;
+};
+
+const parseJsonArrayInput = (value: string, fieldName: 'examples' | 'testCases'): unknown[] => {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${fieldName} must be a JSON array`);
+    }
+    return parsed;
+  } catch (_error) {
+    throw new Error(`${fieldName} must be a valid JSON array`);
+  }
+};
+
+const normalizeExamples = (value: unknown, fieldName: 'examples' | 'testCases'): Array<{ input: string; output: string }> => {
+  let rawItems: unknown[];
+
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  if (typeof value === 'string') {
+    rawItems = parseJsonArrayInput(value, fieldName);
+  } else if (Array.isArray(value)) {
+    rawItems = value;
+  } else {
+    throw new Error(`${fieldName} must be an array`);
+  }
+
+  return rawItems.map((item, index) => {
+    const candidate = item as ProblemExampleLike;
+
+    if (!candidate || typeof candidate !== 'object') {
+      throw new Error(`${fieldName}[${index}] must be an object with input and output`);
+    }
+
+    if (candidate.input === undefined || candidate.output === undefined) {
+      throw new Error(`${fieldName}[${index}] must include input and output`);
+    }
+
+    return {
+      input: typeof candidate.input === 'string' ? candidate.input : JSON.stringify(candidate.input),
+      output: typeof candidate.output === 'string' ? candidate.output : JSON.stringify(candidate.output),
+    };
+  });
+};
+
 class ProblemService {
   async getAllProblems(skip: number = 0, limit: number = 10, difficulty?: string, category?: string) {
     const conditions: string[] = [];
@@ -49,6 +99,9 @@ class ProblemService {
   }
 
   async createProblem(problemData: Partial<IProblem>) {
+    const normalizedExamples = normalizeExamples(problemData.examples, 'examples');
+    const normalizedTestCases = normalizeExamples(problemData.testCases, 'testCases');
+
     const result = await query<any>(
       `
         INSERT INTO problems (
@@ -65,9 +118,9 @@ class ProblemService {
         problemData.difficulty,
         problemData.category,
         problemData.tags || [],
-        problemData.examples || [],
+        JSON.stringify(normalizedExamples),
         problemData.constraints || [],
-        problemData.testCases || [],
+        JSON.stringify(normalizedTestCases),
         problemData.timeLimit ?? 5,
         problemData.memoryLimit ?? 256,
         problemData.submissionCount ?? 0,
@@ -99,7 +152,17 @@ class ProblemService {
       return this.getProblemById(problemId);
     }
 
-    const values = entries.map(([, value]) => value);
+    const values = entries.map(([key, value]) => {
+      if (key === 'examples') {
+        return JSON.stringify(normalizeExamples(value, 'examples'));
+      }
+
+      if (key === 'testCases') {
+        return JSON.stringify(normalizeExamples(value, 'testCases'));
+      }
+
+      return value;
+    });
     const setClause = entries.map(([key], index) => `${columnMap[key]} = $${index + 2}`).join(', ');
     const result = await query<any>(
       `UPDATE problems SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,

@@ -27,12 +27,15 @@ const generateUniqueUsername = async (baseUsername) => {
     }
 };
 const ensureDefaultAdminAccount = async () => {
+    const currentAdmin = await (0, persistence_1.getAnyAdminUser)();
     const existingAdmin = await (0, persistence_1.getUserByEmail)(DEFAULT_ADMIN_EMAIL, { includePassword: true });
     if (existingAdmin) {
         let updated = false;
         if (existingAdmin.role !== DEFAULT_ADMIN_ROLE) {
-            existingAdmin.role = DEFAULT_ADMIN_ROLE;
-            updated = true;
+            if (!currentAdmin) {
+                existingAdmin.role = DEFAULT_ADMIN_ROLE;
+                updated = true;
+            }
         }
         const isSamePassword = existingAdmin.password
             ? await bcrypt_1.default.compare(DEFAULT_ADMIN_PASSWORD, existingAdmin.password)
@@ -53,6 +56,14 @@ const ensureDefaultAdminAccount = async () => {
             updated,
             email: existingAdmin.email,
             username: existingAdmin.username,
+        };
+    }
+    if (currentAdmin) {
+        return {
+            created: false,
+            updated: false,
+            email: currentAdmin.email,
+            username: currentAdmin.username,
         };
     }
     const username = await generateUniqueUsername(DEFAULT_ADMIN_USERNAME);

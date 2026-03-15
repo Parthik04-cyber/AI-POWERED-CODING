@@ -31,8 +31,8 @@ const Register: React.FC = () => {
     try {
       const { data } = await authAPI.register(formData);
       
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
       
       setUser(data.user);
       setToken(data.token);

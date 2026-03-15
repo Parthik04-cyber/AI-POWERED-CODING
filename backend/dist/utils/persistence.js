@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveUser = exports.createUser = exports.emailOrUsernameExists = exports.usernameExists = exports.getUserByEmail = exports.getUserById = exports.mapLeaderboardRow = exports.mapStoreTransactionRow = exports.mapSubmissionRow = exports.mapProblemRow = exports.mapUserRow = exports.generateId = void 0;
+exports.saveUser = exports.createUser = exports.getAnyAdminUser = exports.emailOrUsernameExists = exports.usernameExists = exports.getUserByEmail = exports.getUserById = exports.mapLeaderboardRow = exports.mapStoreTransactionRow = exports.mapSubmissionRow = exports.mapProblemRow = exports.mapUserRow = exports.generateId = void 0;
 const crypto_1 = require("crypto");
 const database_1 = require("../config/database");
 const toDate = (value) => {
@@ -158,7 +158,44 @@ const emailOrUsernameExists = async (email, username, client) => {
     return (result.rowCount || 0) > 0;
 };
 exports.emailOrUsernameExists = emailOrUsernameExists;
+const getAnyAdminUser = async (options = {}) => {
+    const conditions = ['role = $1'];
+    const params = ['admin'];
+    if (options.excludeUserId) {
+        conditions.push(`id <> $${params.length + 1}`);
+        params.push(options.excludeUserId);
+    }
+    const result = await (0, database_1.query)(`SELECT * FROM users WHERE ${conditions.join(' AND ')} ORDER BY created_at ASC LIMIT 1`, params, options.client);
+    const row = result.rows[0];
+    if (!row) {
+        return null;
+    }
+    return (0, exports.mapUserRow)(row, { solvedProblemIds: [], completedActivityRefs: [] }, options.includePassword);
+};
+exports.getAnyAdminUser = getAnyAdminUser;
+const ensureAdminRoleAssignable = async (requestedRole, options = {}) => {
+    if (requestedRole !== 'admin') {
+        return;
+    }
+    if (!options.existingUserId) {
+        const existingAdmin = await (0, exports.getAnyAdminUser)({ client: options.client });
+        if (existingAdmin) {
+            throw new Error('Only one admin account is allowed');
+        }
+        return;
+    }
+    const currentRoleResult = await (0, database_1.query)('SELECT role FROM users WHERE id = $1 LIMIT 1', [options.existingUserId], options.client);
+    const currentRole = currentRoleResult.rows[0]?.role;
+    if (currentRole !== 'admin') {
+        const existingAdmin = await (0, exports.getAnyAdminUser)({ excludeUserId: options.existingUserId, client: options.client });
+        if (existingAdmin) {
+            throw new Error('Only one admin account is allowed');
+        }
+    }
+};
 const createUser = async (data, client) => {
+    const targetRole = data.role || 'user';
+    await ensureAdminRoleAssignable(targetRole, { client });
     const userId = data._id || (0, exports.generateId)();
     const result = await (0, database_1.query)(`
       INSERT INTO users (
@@ -180,7 +217,7 @@ const createUser = async (data, client) => {
         data.email,
         data.password,
         data.fullName,
-        data.role || 'user',
+        targetRole,
         data.profileImage || null,
         data.bio || null,
         data.problemsSolved || 0,
@@ -209,6 +246,7 @@ const createUser = async (data, client) => {
 };
 exports.createUser = createUser;
 const saveUser = async (user, client) => {
+    await ensureAdminRoleAssignable(user.role, { existingUserId: user._id, client });
     await (0, database_1.query)(`
       UPDATE users
       SET
