@@ -191,8 +191,33 @@ ai-coding-platform/
 ### Authentication
 - `POST /api/auth/register` - Create new account
 - `POST /api/auth/login` - Login
+- `POST /api/auth/forgot-password` - Generate a password reset link/token
+- `POST /api/auth/reset-password` - Reset password using a valid reset token
+- `POST /api/auth/change-password` - Change password while authenticated
 - `GET /api/auth/profile` - Get user profile (requires token)
 - `PUT /api/auth/profile` - Update profile (requires token)
+
+### Password Recovery
+
+If SMTP/email delivery is not configured, the backend returns the reset link directly in development when you call `POST /api/auth/forgot-password`.
+
+You can also reset a password directly from PostgreSQL using the CLI script:
+
+```bash
+cd backend
+npm run reset:password -- --email user@example.com --password NewSecurePassword123
+```
+
+To enable automatic email delivery, configure SMTP in backend/.env:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=CodeMaster <no-reply@codemaster.local>
+```
 
 ### Problems
 - `GET /api/problems` - Get all problems (with pagination)

@@ -2,5 +2,10 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/about": "pages/about.js",
+  "/explore": "pages/explore.js",
+  "/explore/course/[courseId]": "pages/explore/course/[courseId].js",
+  "/problems": "pages/problems.js",
+  "/login": "pages/login.js"
 }

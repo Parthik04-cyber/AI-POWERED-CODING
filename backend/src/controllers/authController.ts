@@ -33,6 +33,59 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    const result = await authService.forgotPassword(email);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({ error: 'Token and newPassword are required' });
+      return;
+    }
+
+    await authService.resetPassword(token, newPassword);
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current password and newPassword are required' });
+      return;
+    }
+
+    await authService.changePassword(req.user.userId, currentPassword, newPassword);
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
