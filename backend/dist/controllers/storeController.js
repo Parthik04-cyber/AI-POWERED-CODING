@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAchievements = exports.getCoinLeaderboard = exports.rewardActivity = exports.spinLuckyWheel = exports.claimDailyLoginReward = exports.subscribePremium = exports.redeemItem = exports.getPurchaseHistory = exports.getOverview = void 0;
+exports.deleteCatalogItem = exports.updateCatalogItem = exports.createCatalogItem = exports.getAdminOverview = exports.getAchievements = exports.getCoinLeaderboard = exports.rewardActivity = exports.spinLuckyWheel = exports.claimDailyLoginReward = exports.subscribePremium = exports.redeemItem = exports.getPurchaseHistory = exports.getOverview = void 0;
 const storeService_1 = __importDefault(require("../services/storeService"));
 const getOverview = async (req, res) => {
     try {
@@ -148,4 +148,49 @@ const getAchievements = async (req, res) => {
     }
 };
 exports.getAchievements = getAchievements;
+const getAdminOverview = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const overview = await storeService_1.default.getAdminOverview(limit);
+        res.status(200).json(overview);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.getAdminOverview = getAdminOverview;
+const createCatalogItem = async (req, res) => {
+    try {
+        const { title, description, cost, section } = req.body;
+        const item = await storeService_1.default.createCatalogItem({ title, description, cost, section });
+        res.status(201).json({ message: 'Catalog item created', item });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.createCatalogItem = createCatalogItem;
+const updateCatalogItem = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, cost, section, isActive } = req.body;
+        const item = await storeService_1.default.updateCatalogItem(id, { title, description, cost, section, isActive });
+        res.status(200).json({ message: 'Catalog item updated', item });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.updateCatalogItem = updateCatalogItem;
+const deleteCatalogItem = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await storeService_1.default.removeCatalogItem(id);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.deleteCatalogItem = deleteCatalogItem;
 //# sourceMappingURL=storeController.js.map

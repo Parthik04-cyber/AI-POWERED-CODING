@@ -90,6 +90,14 @@ const archiveLegacyTablesIfNeeded = async (): Promise<void> => {
       ],
     },
     {
+      tableName: 'store_catalog_items',
+      requiredColumns: [
+        { name: 'id', type: 'text' },
+        { name: 'title', type: 'text' },
+        { name: 'section', type: 'text' },
+      ],
+    },
+    {
       tableName: 'user_solved_problems',
       requiredColumns: [
         { name: 'user_id', type: 'text' },
@@ -260,6 +268,18 @@ const initializeSchema = async (): Promise<void> => {
       )
     `,
     `
+      CREATE TABLE IF NOT EXISTS store_catalog_items (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        cost INTEGER NOT NULL CHECK (cost >= 0),
+        section TEXT NOT NULL CHECK (section IN ('redeem', 'premium')),
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `,
+    `
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -281,6 +301,21 @@ const initializeSchema = async (): Promise<void> => {
         problem_count INTEGER NOT NULL DEFAULT 0,
         starts_at TIMESTAMPTZ,
         ends_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS courses (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        track TEXT,
+        difficulty TEXT CHECK (difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
+        estimated_time TEXT,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published')),
+        lessons JSONB NOT NULL DEFAULT '[]'::JSONB,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -311,10 +346,13 @@ const initializeSchema = async (): Promise<void> => {
     'CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at DESC)',
     'CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard(score DESC, problems_solved DESC)',
     'CREATE INDEX IF NOT EXISTS idx_store_transactions_user_created_at ON store_transactions(user_id, created_at DESC)',
+    'CREATE INDEX IF NOT EXISTS idx_store_catalog_items_section_active ON store_catalog_items(section, is_active)',
     'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id, created_at DESC)',
     'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at)',
     'CREATE INDEX IF NOT EXISTS idx_contests_starts_at ON contests(starts_at)',
     'CREATE INDEX IF NOT EXISTS idx_contests_status ON contests(status)',
+    'CREATE INDEX IF NOT EXISTS idx_courses_status_updated_at ON courses(status, updated_at DESC)',
+    'CREATE INDEX IF NOT EXISTS idx_courses_updated_at ON courses(updated_at DESC)',
   ];
 
   for (const statement of schemaStatements) {

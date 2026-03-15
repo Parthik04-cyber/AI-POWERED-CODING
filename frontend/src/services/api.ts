@@ -97,6 +97,14 @@ export const executeAPI = {
 export const storeAPI = {
   getOverview: () => api.get('/store/overview'),
   getHistory: (limit = 30) => api.get('/store/history', { params: { limit } }),
+  getAdminOverview: (limit = 20) => api.get('/store/admin/overview', { params: { limit } }),
+  createCatalogItem: (data: { title: string; description: string; cost: number; section: 'redeem' | 'premium' }) =>
+    api.post('/store/admin/catalog', data),
+  updateCatalogItem: (
+    id: string,
+    data: Partial<{ title: string; description: string; cost: number; section: 'redeem' | 'premium'; isActive: boolean }>
+  ) => api.put(`/store/admin/catalog/${id}`, data),
+  deleteCatalogItem: (id: string) => api.delete(`/store/admin/catalog/${id}`),
   redeemItem: (itemId: string) => api.post('/store/redeem', { itemId }),
   subscribePremium: (plan: 'monthly' | 'yearly') => api.post('/store/premium/subscribe', { plan }),
   claimDailyLogin: () => api.post('/store/daily-login'),
@@ -111,6 +119,16 @@ export const storeAPI = {
 
 export const contestAPI = {
   getAdminOverview: () => api.get('/contests/admin/overview'),
+};
+
+export const courseAPI = {
+  getPublishedCourses: () => api.get('/courses'),
+  getPublishedCourseById: (id: string) => api.get(`/courses/${id}`),
+  getAdminCourses: (status?: 'Draft' | 'Review' | 'Published') => api.get('/courses/admin/all', { params: { status } }),
+  getAdminCourseById: (id: string) => api.get(`/courses/admin/${id}`),
+  createCourse: (data: any) => api.post('/courses', data),
+  updateCourse: (id: string, data: any) => api.put(`/courses/${id}`, data),
+  updateCourseStatus: (id: string, status: 'Draft' | 'Review' | 'Published') => api.patch(`/courses/${id}/status`, { status }),
 };
 
 // Discuss / Community APIs

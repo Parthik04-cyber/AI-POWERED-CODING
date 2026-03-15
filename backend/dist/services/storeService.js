@@ -7,28 +7,24 @@ const PROBLEM_COIN_REWARDS = {
     Medium: 10,
     Hard: 20,
 };
-const PREMIUM_PLAN_COSTS = {
-    monthly: 120,
-    yearly: 1200,
-};
 const ACTIVITY_REWARDS = {
     contest: 30,
     interview: 25,
 };
 const LUCKY_SPIN_REWARDS = [0, 5, 10, 15, 25, 50, 75];
-const STORE_ITEMS = [
+const DEFAULT_STORE_ITEMS = [
     {
         id: 'premium-monthly',
         title: 'Premium Subscription - Monthly',
         description: 'Unlock premium features for one month.',
-        cost: PREMIUM_PLAN_COSTS.monthly,
+        cost: 120,
         section: 'premium',
     },
     {
         id: 'premium-yearly',
         title: 'Premium Subscription - Yearly',
         description: 'Best value yearly premium plan.',
-        cost: PREMIUM_PLAN_COSTS.yearly,
+        cost: 1200,
         section: 'premium',
     },
     {
@@ -88,6 +84,83 @@ const ACHIEVEMENTS = [
     },
 ];
 class StoreService {
+    mapCatalogRow(row) {
+        return {
+            id: String(row.id),
+            title: String(row.title),
+            description: String(row.description),
+            cost: Number(row.cost || 0),
+            section: row.section,
+            isActive: Boolean(row.is_active),
+            createdAt: row.created_at ? new Date(row.created_at) : undefined,
+            updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
+        };
+    }
+    sanitizeCatalogInput(input) {
+        const title = (input.title || '').trim();
+        const description = (input.description || '').trim();
+        const cost = Number(input.cost);
+        const section = input.section;
+        if (!title) {
+            throw new Error('Item title is required');
+        }
+        if (!description) {
+            throw new Error('Item description is required');
+        }
+        if (!Number.isFinite(cost) || cost < 0) {
+            throw new Error('Item cost must be a non-negative number');
+        }
+        if (!section || !['redeem', 'premium'].includes(section)) {
+            throw new Error('Item section must be redeem or premium');
+        }
+        return { title, description, cost, section };
+    }
+    buildCatalogId(title) {
+        const base = title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 40);
+        const safeBase = base || 'item';
+        return `${safeBase}-${(0, persistence_1.generateId)().slice(0, 8)}`;
+    }
+    async ensureCatalogSeed(client) {
+        const countResult = await (0, database_1.query)('SELECT COUNT(*)::TEXT AS count FROM store_catalog_items', [], client);
+        const count = Number(countResult.rows[0]?.count || 0);
+        if (count > 0) {
+            return;
+        }
+        for (const item of DEFAULT_STORE_ITEMS) {
+            await (0, database_1.query)(`
+          INSERT INTO store_catalog_items (id, title, description, cost, section, is_active, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
+        `, [item.id, item.title, item.description, item.cost, item.section], client);
+        }
+    }
+    async getCatalogItems(includeInactive = false, client) {
+        await this.ensureCatalogSeed(client);
+        const filters = includeInactive ? '' : 'WHERE is_active = TRUE';
+        const result = await (0, database_1.query)(`
+        SELECT id, title, description, cost, section, is_active, created_at, updated_at
+        FROM store_catalog_items
+        ${filters}
+        ORDER BY section ASC, cost ASC, created_at ASC
+      `, [], client);
+        return result.rows.map((row) => this.mapCatalogRow(row));
+    }
+    async getCatalogItemById(itemId, client) {
+        await this.ensureCatalogSeed(client);
+        const result = await (0, database_1.query)(`
+        SELECT id, title, description, cost, section, is_active, created_at, updated_at
+        FROM store_catalog_items
+        WHERE id = $1
+        LIMIT 1
+      `, [itemId], client);
+        if (!result.rows[0]) {
+            return null;
+        }
+        return this.mapCatalogRow(result.rows[0]);
+    }
     normalizeDateToUTC(date) {
         return date.toISOString().slice(0, 10);
     }
@@ -166,6 +239,7 @@ class StoreService {
             this.ensurePremiumState(user);
             this.updateAchievementBadges(user);
             const persistedUser = await (0, persistence_1.saveUser)(user, client);
+            const catalogItems = await this.getCatalogItems(false, client);
             const recentTransactionsResult = await (0, database_1.query)(`
           SELECT * FROM store_transactions
           WHERE user_id = $1
@@ -185,8 +259,8 @@ class StoreService {
                     activity: ACTIVITY_REWARDS,
                 },
                 sections: {
-                    redeem: STORE_ITEMS.filter((item) => item.section === 'redeem'),
-                    premium: STORE_ITEMS.filter((item) => item.section === 'premium'),
+                    redeem: catalogItems.filter((item) => item.section === 'redeem'),
+                    premium: catalogItems.filter((item) => item.section === 'premium'),
                 },
                 achievements: ACHIEVEMENTS.map((achievement) => ({
                     ...achievement,
@@ -214,11 +288,11 @@ class StoreService {
         return result.rows.map((row) => (0, persistence_1.mapStoreTransactionRow)(row));
     }
     async redeemItem(userId, itemId) {
-        const item = STORE_ITEMS.find((entry) => entry.id === itemId && entry.section === 'redeem');
-        if (!item) {
-            throw new Error('Redeem item not found');
-        }
         return (0, database_1.withTransaction)(async (client) => {
+            const item = await this.getCatalogItemById(itemId, client);
+            if (!item || !item.isActive || item.section !== 'redeem') {
+                throw new Error('Redeem item not found');
+            }
             const user = await (0, persistence_1.getUserById)(userId, { client });
             if (!user) {
                 throw new Error('User not found');
@@ -238,16 +312,17 @@ class StoreService {
         });
     }
     async subscribePremium(userId, plan) {
-        const planCost = PREMIUM_PLAN_COSTS[plan];
-        if (!planCost) {
-            throw new Error('Invalid premium plan');
-        }
+        const planItemId = `premium-${plan}`;
         return (0, database_1.withTransaction)(async (client) => {
+            const planItem = await this.getCatalogItemById(planItemId, client);
+            if (!planItem || !planItem.isActive || planItem.section !== 'premium') {
+                throw new Error(`Premium ${plan} plan is not available`);
+            }
             const user = await (0, persistence_1.getUserById)(userId, { client });
             if (!user) {
                 throw new Error('User not found');
             }
-            if ((user.coins || 0) < planCost) {
+            if ((user.coins || 0) < planItem.cost) {
                 throw new Error('Not enough coins for this premium plan');
             }
             const now = new Date();
@@ -259,13 +334,13 @@ class StoreService {
             else {
                 nextExpiry.setFullYear(nextExpiry.getFullYear() + 1);
             }
-            user.coins = (user.coins || 0) - planCost;
+            user.coins = (user.coins || 0) - planItem.cost;
             user.isPremium = true;
             user.premiumPlan = plan;
             user.premiumExpiresAt = nextExpiry;
             this.updateAchievementBadges(user);
             const persistedUser = await (0, persistence_1.saveUser)(user, client);
-            await this.createTransaction(userId, 'premium_purchase', `Premium ${plan === 'monthly' ? 'Monthly' : 'Yearly'} Plan`, -planCost, persistedUser.coins, `premium-${plan}`, { plan, expiresAt: nextExpiry.toISOString() }, client);
+            await this.createTransaction(userId, 'premium_purchase', planItem.title, -planItem.cost, persistedUser.coins, planItem.id, { plan, expiresAt: nextExpiry.toISOString() }, client);
             return {
                 message: 'Premium activated successfully',
                 coins: persistedUser.coins,
@@ -422,6 +497,85 @@ class StoreService {
             isPremium: Boolean(row.is_premium),
             problemsSolved: Number(row.problems_solved || 0),
         }));
+    }
+    async getAdminOverview(limit = 20) {
+        return (0, database_1.withTransaction)(async (client) => {
+            const [catalogItems, leaderboard] = await Promise.all([
+                this.getCatalogItems(true, client),
+                this.getCoinLeaderboard(10),
+            ]);
+            const recentTransactionsResult = await (0, database_1.query)(`
+          SELECT
+            t.*,
+            u.username,
+            u.full_name
+          FROM store_transactions t
+          JOIN users u ON u.id = t.user_id
+          ORDER BY t.created_at DESC
+          LIMIT $1
+        `, [limit], client);
+            return {
+                catalogItems,
+                recentTransactions: recentTransactionsResult.rows.map((row) => ({
+                    ...(0, persistence_1.mapStoreTransactionRow)(row),
+                    username: row.username,
+                    fullName: row.full_name,
+                })),
+                coinLeaderboard: leaderboard,
+            };
+        });
+    }
+    async createCatalogItem(input) {
+        return (0, database_1.withTransaction)(async (client) => {
+            await this.ensureCatalogSeed(client);
+            const payload = this.sanitizeCatalogInput(input);
+            const itemId = this.buildCatalogId(payload.title);
+            const result = await (0, database_1.query)(`
+          INSERT INTO store_catalog_items (id, title, description, cost, section, is_active, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
+          RETURNING id, title, description, cost, section, is_active, created_at, updated_at
+        `, [itemId, payload.title, payload.description, payload.cost, payload.section], client);
+            return this.mapCatalogRow(result.rows[0]);
+        });
+    }
+    async updateCatalogItem(itemId, input) {
+        return (0, database_1.withTransaction)(async (client) => {
+            await this.ensureCatalogSeed(client);
+            const existing = await this.getCatalogItemById(itemId, client);
+            if (!existing) {
+                throw new Error('Catalog item not found');
+            }
+            const next = {
+                title: input.title ?? existing.title,
+                description: input.description ?? existing.description,
+                cost: input.cost ?? existing.cost,
+                section: input.section ?? existing.section,
+                isActive: typeof input.isActive === 'boolean' ? input.isActive : existing.isActive,
+            };
+            const payload = this.sanitizeCatalogInput(next);
+            const result = await (0, database_1.query)(`
+          UPDATE store_catalog_items
+          SET title = $2,
+              description = $3,
+              cost = $4,
+              section = $5,
+              is_active = $6,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING id, title, description, cost, section, is_active, created_at, updated_at
+        `, [itemId, payload.title, payload.description, payload.cost, payload.section, next.isActive], client);
+            return this.mapCatalogRow(result.rows[0]);
+        });
+    }
+    async removeCatalogItem(itemId) {
+        await (0, database_1.withTransaction)(async (client) => {
+            await this.ensureCatalogSeed(client);
+            const deleteResult = await (0, database_1.query)('DELETE FROM store_catalog_items WHERE id = $1', [itemId], client);
+            if ((deleteResult.rowCount || 0) === 0) {
+                throw new Error('Catalog item not found');
+            }
+        });
+        return { message: 'Catalog item removed successfully' };
     }
     async getAchievements(userId) {
         const user = await (0, persistence_1.getUserById)(userId, { includeRelations: false });

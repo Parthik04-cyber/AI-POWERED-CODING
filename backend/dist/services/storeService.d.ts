@@ -1,13 +1,24 @@
+import { TransactionType } from '../models/StoreTransaction';
 type PremiumPlan = 'monthly' | 'yearly';
 type ActivityType = 'contest' | 'interview';
-interface RewardItem {
+type StoreSection = 'redeem' | 'premium';
+interface StoreCatalogItem {
     id: string;
     title: string;
     description: string;
     cost: number;
-    section: 'redeem' | 'premium';
+    section: StoreSection;
+    isActive: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 declare class StoreService {
+    private mapCatalogRow;
+    private sanitizeCatalogInput;
+    private buildCatalogId;
+    private ensureCatalogSeed;
+    private getCatalogItems;
+    private getCatalogItemById;
     private normalizeDateToUTC;
     private updateCodingStreak;
     private ensurePremiumState;
@@ -30,8 +41,8 @@ declare class StoreService {
             activity: Record<ActivityType, number>;
         };
         sections: {
-            redeem: RewardItem[];
-            premium: RewardItem[];
+            redeem: StoreCatalogItem[];
+            premium: StoreCatalogItem[];
         };
         achievements: {
             unlocked: boolean;
@@ -53,7 +64,7 @@ declare class StoreService {
     redeemItem(userId: string, itemId: string): Promise<{
         message: string;
         coins: number;
-        item: RewardItem;
+        item: StoreCatalogItem;
     }>;
     subscribePremium(userId: string, plan: PremiumPlan): Promise<{
         message: string;
@@ -91,6 +102,47 @@ declare class StoreService {
         isPremium: boolean;
         problemsSolved: number;
     }[]>;
+    getAdminOverview(limit?: number): Promise<{
+        catalogItems: StoreCatalogItem[];
+        recentTransactions: {
+            username: any;
+            fullName: any;
+            _id: string;
+            userId: string;
+            type: TransactionType;
+            itemId?: string;
+            title: string;
+            coinsDelta: number;
+            balanceAfter: number;
+            metadata?: Record<string, unknown>;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
+        coinLeaderboard: {
+            _id: string;
+            username: any;
+            fullName: any;
+            coins: number;
+            isPremium: boolean;
+            problemsSolved: number;
+        }[];
+    }>;
+    createCatalogItem(input: {
+        title: string;
+        description: string;
+        cost: number;
+        section: StoreSection;
+    }): Promise<StoreCatalogItem>;
+    updateCatalogItem(itemId: string, input: Partial<{
+        title: string;
+        description: string;
+        cost: number;
+        section: StoreSection;
+        isActive: boolean;
+    }>): Promise<StoreCatalogItem>;
+    removeCatalogItem(itemId: string): Promise<{
+        message: string;
+    }>;
     getAchievements(userId: string): Promise<{
         unlocked: boolean;
         id: string;

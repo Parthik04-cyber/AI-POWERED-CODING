@@ -60,3 +60,26 @@ export interface AIAssistant {
   status: 'online' | 'offline';
   specialization: string;
 }
+
+export type CourseStatus = 'Draft' | 'Review' | 'Published';
+
+export interface CourseLesson {
+  id: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  order: number;
+}
+
+export interface CourseRecord {
+  _id: string;
+  title: string;
+  description?: string;
+  track?: string;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  estimatedTime?: string;
+  status: CourseStatus;
+  lessons: CourseLesson[];
+  createdAt: string;
+  updatedAt: string;
+}

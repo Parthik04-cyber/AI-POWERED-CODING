@@ -37,21 +37,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const storeController = __importStar(require("../controllers/storeController"));
+const courseController = __importStar(require("../controllers/courseController"));
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
-router.get('/overview', auth_1.authMiddleware, storeController.getOverview);
-router.get('/history', auth_1.authMiddleware, storeController.getPurchaseHistory);
-router.get('/coin-leaderboard', storeController.getCoinLeaderboard);
-router.get('/achievements', auth_1.authMiddleware, storeController.getAchievements);
-router.get('/admin/overview', auth_1.authMiddleware, auth_1.adminMiddleware, storeController.getAdminOverview);
-router.post('/admin/catalog', auth_1.authMiddleware, auth_1.adminMiddleware, storeController.createCatalogItem);
-router.put('/admin/catalog/:id', auth_1.authMiddleware, auth_1.adminMiddleware, storeController.updateCatalogItem);
-router.delete('/admin/catalog/:id', auth_1.authMiddleware, auth_1.adminMiddleware, storeController.deleteCatalogItem);
-router.post('/redeem', auth_1.authMiddleware, storeController.redeemItem);
-router.post('/premium/subscribe', auth_1.authMiddleware, storeController.subscribePremium);
-router.post('/daily-login', auth_1.authMiddleware, storeController.claimDailyLoginReward);
-router.post('/lucky-spin', auth_1.authMiddleware, storeController.spinLuckyWheel);
-router.post('/earn/activity', auth_1.authMiddleware, storeController.rewardActivity);
+router.get('/admin/all', auth_1.authMiddleware, auth_1.adminMiddleware, courseController.getAdminCourses);
+router.get('/admin/:id', auth_1.authMiddleware, auth_1.adminMiddleware, courseController.getAdminCourseById);
+router.post('/', auth_1.authMiddleware, auth_1.adminMiddleware, courseController.createCourse);
+router.put('/:id', auth_1.authMiddleware, auth_1.adminMiddleware, courseController.updateCourse);
+router.patch('/:id/status', auth_1.authMiddleware, auth_1.adminMiddleware, courseController.updateCourseStatus);
+router.get('/', courseController.getPublishedCourses);
+router.get('/:id', courseController.getPublishedCourseById);
 exports.default = router;
-//# sourceMappingURL=storeRoutes.js.map
+//# sourceMappingURL=courseRoutes.js.map

@@ -1,6 +1,6 @@
 import express from 'express';
 import * as storeController from '../controllers/storeController';
-import { authMiddleware } from '../middleware/auth';
+import { adminMiddleware, authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -8,6 +8,11 @@ router.get('/overview', authMiddleware, storeController.getOverview);
 router.get('/history', authMiddleware, storeController.getPurchaseHistory);
 router.get('/coin-leaderboard', storeController.getCoinLeaderboard);
 router.get('/achievements', authMiddleware, storeController.getAchievements);
+
+router.get('/admin/overview', authMiddleware, adminMiddleware, storeController.getAdminOverview);
+router.post('/admin/catalog', authMiddleware, adminMiddleware, storeController.createCatalogItem);
+router.put('/admin/catalog/:id', authMiddleware, adminMiddleware, storeController.updateCatalogItem);
+router.delete('/admin/catalog/:id', authMiddleware, adminMiddleware, storeController.deleteCatalogItem);
 
 router.post('/redeem', authMiddleware, storeController.redeemItem);
 router.post('/premium/subscribe', authMiddleware, storeController.subscribePremium);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/layouts/MainLayout';
 import LearningPackCard from '@/components/LearningPackCard';
@@ -10,65 +10,76 @@ import RecommendationCard from '@/components/RecommendationCard';
 import MiniTestCard from '@/components/MiniTestCard';
 import AILearningAssistant from '@/components/AILearningAssistant';
 import GamificationBadges from '@/components/GamificationBadges';
-import { LearningPack, LearningPath, CompanyPack, Recommendation, MiniTest } from '@/types/learning';
+import { CourseRecord, LearningPack, LearningPath, CompanyPack, Recommendation, MiniTest } from '@/types/learning';
 import { useAuthStore } from '@/utils/store';
-import { getCourseResumeLesson } from '@/services/learningProgressService';
+import { getCourseResumeLesson, setCourseLessonIds } from '@/services/learningProgressService';
+import { courseAPI } from '@/services/api';
 
 const Explore: React.FC = () => {
   const router = useRouter();
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('all');
+  const [publishedCourses, setPublishedCourses] = useState<CourseRecord[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState('');
 
-  const featuredPacks: LearningPack[] = [
-    {
-      id: '1',
-      title: 'Data Structures & Algorithms',
-      description: 'Master fundamental data structures and algorithmic problem-solving techniques.',
-      chapters: 12,
-      problemsCount: 85,
-      progress: 65,
-      difficulty: 'Intermediate',
-      icon: '📊',
-      color: 'from-blue-500 to-blue-600',
-      estimatedTime: '40 hrs',
-    },
-    {
-      id: '2',
-      title: 'System Design Interviews',
-      description: 'Learn how to design scalable systems at scale with industry-standard patterns.',
-      chapters: 8,
-      problemsCount: 45,
-      progress: 40,
-      difficulty: 'Advanced',
-      icon: '🏗️',
-      color: 'from-purple-500 to-purple-600',
-      estimatedTime: '35 hrs',
-    },
-    {
-      id: '3',
-      title: 'Top Interview Questions',
-      description: 'Practice the most frequently asked questions in technical interviews.',
-      chapters: 10,
-      problemsCount: 120,
-      progress: 80,
-      difficulty: 'Intermediate',
-      icon: '⭐',
-      color: 'from-yellow-500 to-yellow-600',
-      estimatedTime: '50 hrs',
-    },
-    {
-      id: '4',
-      title: 'Dynamic Programming',
-      description: 'Deep dive into dynamic programming techniques and optimization strategies.',
-      chapters: 6,
-      problemsCount: 55,
-      progress: 30,
-      difficulty: 'Advanced',
-      icon: '⚙️',
-      color: 'from-pink-500 to-pink-600',
-      estimatedTime: '32 hrs',
-    },
-  ];
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPublishedCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        setCoursesError('');
+        const response = await courseAPI.getPublishedCourses();
+        if (!mounted) {
+          return;
+        }
+
+        const courses = (response.data?.courses || []) as CourseRecord[];
+        setPublishedCourses(courses);
+
+        courses.forEach((course) => {
+          const lessonIds = (course.lessons || [])
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((lesson) => lesson.id);
+          setCourseLessonIds(course._id, lessonIds);
+        });
+      } catch (error: any) {
+        if (!mounted) {
+          return;
+        }
+        setCoursesError(error?.response?.data?.error || 'Failed to load published courses.');
+      } finally {
+        if (mounted) {
+          setCoursesLoading(false);
+        }
+      }
+    };
+
+    void loadPublishedCourses();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const featuredPacks: LearningPack[] = useMemo(
+    () =>
+      publishedCourses.map((course, index) => ({
+        id: course._id,
+        title: course.title,
+        description: course.description || 'Structured course designed by admin authors.',
+        chapters: course.lessons.length,
+        problemsCount: course.lessons.length,
+        progress: 0,
+        difficulty: course.difficulty || 'Intermediate',
+        icon: '📘',
+        color: index % 2 === 0 ? 'from-blue-500 to-cyan-500' : 'from-emerald-500 to-teal-500',
+        estimatedTime: course.estimatedTime || 'Flexible',
+      })),
+    [publishedCourses]
+  );
 
   const learningPaths: LearningPath[] = [
     {
@@ -271,9 +282,23 @@ const Explore: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredPacks.map((pack) => (
-              <LearningPackCard key={pack.id} pack={pack} onView={handleViewPack} />
-            ))}
+            {coursesLoading ? (
+              <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                Loading published courses...
+              </div>
+            ) : coursesError ? (
+              <div className="col-span-full rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+                {coursesError}
+              </div>
+            ) : featuredPacks.length === 0 ? (
+              <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                No published courses are available yet.
+              </div>
+            ) : (
+              featuredPacks.map((pack) => (
+                <LearningPackCard key={pack.id} pack={pack} onView={handleViewPack} />
+              ))
+            )}
           </div>
         </section>
 

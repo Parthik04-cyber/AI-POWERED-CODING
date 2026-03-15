@@ -16,6 +16,7 @@ const leaderboardRoutes_1 = __importDefault(require("./routes/leaderboardRoutes"
 const executeRoutes_1 = __importDefault(require("./routes/executeRoutes"));
 const storeRoutes_1 = __importDefault(require("./routes/storeRoutes"));
 const contestRoutes_1 = __importDefault(require("./routes/contestRoutes"));
+const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/leaderboard', leaderboardRoutes_1.default);
 app.use('/api/execute', executeRoutes_1.default);
 app.use('/api/store', storeRoutes_1.default);
 app.use('/api/contests', contestRoutes_1.default);
+app.use('/api/courses', courseRoutes_1.default);
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'Server is running' });
