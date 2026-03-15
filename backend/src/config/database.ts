@@ -353,6 +353,61 @@ const initializeSchema = async (): Promise<void> => {
     'CREATE INDEX IF NOT EXISTS idx_contests_status ON contests(status)',
     'CREATE INDEX IF NOT EXISTS idx_courses_status_updated_at ON courses(status, updated_at DESC)',
     'CREATE INDEX IF NOT EXISTS idx_courses_updated_at ON courses(updated_at DESC)',
+
+    // ── Discussion extra columns ──────────────────────────────────────────────
+    `ALTER TABLE discussions ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE discussions ADD COLUMN IF NOT EXISTS comment_count INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE discussions ADD COLUMN IF NOT EXISTS report_count INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE discussions ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE discussions ADD COLUMN IF NOT EXISTS poll_votes JSONB NOT NULL DEFAULT '{}'::JSONB`,
+
+    // ── Discussion upvotes ────────────────────────────────────────────────────
+    `
+      CREATE TABLE IF NOT EXISTS discussion_upvotes (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        discussion_id TEXT NOT NULL REFERENCES discussions(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (user_id, discussion_id)
+      )
+    `,
+
+    // ── Discussion reports ────────────────────────────────────────────────────
+    `
+      CREATE TABLE IF NOT EXISTS discussion_reports (
+        id TEXT PRIMARY KEY,
+        discussion_id TEXT NOT NULL REFERENCES discussions(id) ON DELETE CASCADE,
+        reporter_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reporter_username TEXT,
+        reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'misinformation', 'nsfw', 'other')),
+        details TEXT,
+        severity TEXT NOT NULL DEFAULT 'Low' CHECK (severity IN ('Low', 'Medium', 'High')),
+        moderation_status TEXT NOT NULL DEFAULT 'Needs review' CHECK (moderation_status IN ('Needs review', 'Escalated', 'Watching', 'Resolved')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `,
+
+    // ── Discussion moderation actions ─────────────────────────────────────────
+    `
+      CREATE TABLE IF NOT EXISTS discussion_moderation_actions (
+        id TEXT PRIMARY KEY,
+        report_id TEXT NOT NULL REFERENCES discussion_reports(id) ON DELETE CASCADE,
+        discussion_id TEXT NOT NULL REFERENCES discussions(id) ON DELETE CASCADE,
+        admin_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        admin_username TEXT NOT NULL,
+        action TEXT NOT NULL CHECK (action IN ('approve', 'delete_post', 'warn_user', 'escalate', 'dismiss')),
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `,
+
+    // ── Indexes ───────────────────────────────────────────────────────────────
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_discussion_reports_unique_reporter
+       ON discussion_reports(discussion_id, reporter_id) WHERE reporter_id IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_discussion_reports_status ON discussion_reports(moderation_status)`,
+    `CREATE INDEX IF NOT EXISTS idx_discussion_reports_discussion ON discussion_reports(discussion_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_discussions_created ON discussions(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_discussions_category ON discussions(category)`,
   ];
 
   for (const statement of schemaStatements) {

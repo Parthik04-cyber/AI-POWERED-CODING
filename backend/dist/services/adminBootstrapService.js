@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const persistence_1 = require("../utils/persistence");
 const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'parthikchadotara@gmail.com';
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'Khushi2004@';
+const SYNC_DEFAULT_ADMIN_PASSWORD = (process.env.SYNC_DEFAULT_ADMIN_PASSWORD || 'false').toLowerCase() === 'true';
 const DEFAULT_ADMIN_ROLE = 'admin';
 const DEFAULT_ADMIN_FULL_NAME = process.env.DEFAULT_ADMIN_FULL_NAME || 'Platform Admin';
 const DEFAULT_ADMIN_USERNAME = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
@@ -37,12 +38,14 @@ const ensureDefaultAdminAccount = async () => {
                 updated = true;
             }
         }
-        const isSamePassword = existingAdmin.password
-            ? await bcrypt_1.default.compare(DEFAULT_ADMIN_PASSWORD, existingAdmin.password)
-            : false;
-        if (!isSamePassword) {
-            existingAdmin.password = await bcrypt_1.default.hash(DEFAULT_ADMIN_PASSWORD, 10);
-            updated = true;
+        if (SYNC_DEFAULT_ADMIN_PASSWORD) {
+            const isSamePassword = existingAdmin.password
+                ? await bcrypt_1.default.compare(DEFAULT_ADMIN_PASSWORD, existingAdmin.password)
+                : false;
+            if (!isSamePassword) {
+                existingAdmin.password = await bcrypt_1.default.hash(DEFAULT_ADMIN_PASSWORD, 10);
+                updated = true;
+            }
         }
         if (!existingAdmin.fullName) {
             existingAdmin.fullName = DEFAULT_ADMIN_FULL_NAME;

@@ -2,7 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin/contests": "pages/admin/contests.js",
-  "/admin/courses": "pages/admin/courses.js",
-  "/admin/store": "pages/admin/store.js"
+  "/admin/analytics": "pages/admin/analytics.js",
+  "/admin/settings": "pages/admin/settings.js",
+  "/admin/login": "pages/admin/login.js",
+  "/login": "pages/login.js"
 }

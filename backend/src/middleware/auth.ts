@@ -35,6 +35,19 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
   }
 };
 
+export const optionalAuthMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key') as any;
+      req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+    }
+  } catch (_e) {
+    // Ignore invalid tokens — just proceed without user
+  }
+  next();
+};
+
 export const adminMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   if (!req.user || req.user.role !== 'admin') {
     res.status(403).json({ error: 'Access denied. Admin only.' });

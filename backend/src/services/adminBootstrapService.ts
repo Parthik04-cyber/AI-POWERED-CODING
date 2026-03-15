@@ -10,6 +10,7 @@ interface EnsureAdminResult {
 
 const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'parthikchadotara@gmail.com';
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'Khushi2004@';
+const SYNC_DEFAULT_ADMIN_PASSWORD = (process.env.SYNC_DEFAULT_ADMIN_PASSWORD || 'false').toLowerCase() === 'true';
 const DEFAULT_ADMIN_ROLE = 'admin';
 const DEFAULT_ADMIN_FULL_NAME = process.env.DEFAULT_ADMIN_FULL_NAME || 'Platform Admin';
 const DEFAULT_ADMIN_USERNAME = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
@@ -45,12 +46,14 @@ export const ensureDefaultAdminAccount = async (): Promise<EnsureAdminResult> =>
       }
     }
 
-    const isSamePassword = existingAdmin.password
-      ? await bcrypt.compare(DEFAULT_ADMIN_PASSWORD, existingAdmin.password)
-      : false;
-    if (!isSamePassword) {
-      existingAdmin.password = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
-      updated = true;
+    if (SYNC_DEFAULT_ADMIN_PASSWORD) {
+      const isSamePassword = existingAdmin.password
+        ? await bcrypt.compare(DEFAULT_ADMIN_PASSWORD, existingAdmin.password)
+        : false;
+      if (!isSamePassword) {
+        existingAdmin.password = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+        updated = true;
+      }
     }
 
     if (!existingAdmin.fullName) {

@@ -1,61 +1,53 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
-import { authAPI, problemAPI, submissionAPI } from '@/services/api';
+import { submissionAPI } from '@/services/api';
 
-interface UserRecord {
-  _id?: string;
-  userId?: string;
-  username: string;
-  score?: number;
+interface AnalyticsOverview {
+  totalSubmissions: number;
+  acceptanceRate: number;
+  activeUsers: number;
+  averageUserScore: number;
 }
 
-interface ProblemRecord {
-  _id: string;
-  title: string;
+interface DifficultyPerformance {
   difficulty: string;
-  category: string;
-}
-
-interface ProblemCategoryStat {
-  _id: string;
-  count: number;
   totalSubmissions: number;
   totalAccepted: number;
+  acceptanceRate: number;
 }
 
-interface SubmissionRecord {
-  _id: string;
-  status: string;
+interface LanguageDistribution {
   language: string;
+  count: number;
 }
+
+interface DifficultyMix {
+  difficulty: string;
+  count: number;
+}
+
+interface AdminAnalyticsResponse {
+  overview: AnalyticsOverview;
+  problemCategoryPerformance: DifficultyPerformance[];
+  submissionLanguagesDistribution: LanguageDistribution[];
+  difficultyMix: DifficultyMix[];
+}
+
+const REFRESH_INTERVAL_MS = 30000;
 
 const AdminAnalyticsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [problems, setProblems] = useState<ProblemRecord[]>([]);
-  const [stats, setStats] = useState<ProblemCategoryStat[]>([]);
-  const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalyticsResponse | null>(null);
 
   useEffect(() => {
     const loadAnalytics = async () => {
       try {
-        setLoading(true);
         setError('');
-
-        const [usersRes, problemsRes, statsRes, submissionsRes] = await Promise.all([
-          authAPI.getUsers(),
-          problemAPI.getAllProblems(0, 100),
-          problemAPI.getStats(),
-          submissionAPI.getAllSubmissionsAdmin(0, 100),
-        ]);
-
-        setUsers(usersRes.data.users || []);
-        setProblems(problemsRes.data.problems || []);
-        setStats(statsRes.data.stats || []);
-        setSubmissions(submissionsRes.data.submissions || []);
+        const analyticsRes = await submissionAPI.getAdminAnalytics();
+        setAnalytics(analyticsRes.data as AdminAnalyticsResponse);
       } catch (loadError: any) {
         setError(loadError.response?.data?.error || 'Failed to load analytics.');
       } finally {
@@ -64,34 +56,17 @@ const AdminAnalyticsPage: React.FC = () => {
     };
 
     void loadAnalytics();
+
+    const intervalId = window.setInterval(() => {
+      void loadAnalytics();
+    }, REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
-  const acceptedCount = submissions.filter((item) => item.status?.toLowerCase() === 'accepted').length;
-  const acceptanceRate = submissions.length ? Math.round((acceptedCount / submissions.length) * 100) : 0;
-  const activeUsers = users.filter((user) => (user.score || 0) > 0).length;
-  const averageScore = users.length
-    ? Math.round(users.reduce((sum, user) => sum + (user.score || 0), 0) / users.length)
-    : 0;
-
-  const languageBreakdown = useMemo(() => {
-    const counts = submissions.reduce<Record<string, number>>((accumulator, submission) => {
-      const key = submission.language || 'unknown';
-      accumulator[key] = (accumulator[key] || 0) + 1;
-      return accumulator;
-    }, {});
-
-    return Object.entries(counts).sort((first, second) => second[1] - first[1]);
-  }, [submissions]);
-
-  const difficultyBreakdown = useMemo(() => {
-    const counts = problems.reduce<Record<string, number>>((accumulator, problem) => {
-      const key = problem.difficulty || 'Unknown';
-      accumulator[key] = (accumulator[key] || 0) + 1;
-      return accumulator;
-    }, {});
-
-    return Object.entries(counts);
-  }, [problems]);
+  const overview = analytics?.overview;
 
   return (
     <AdminShell
@@ -104,19 +79,19 @@ const AdminAnalyticsPage: React.FC = () => {
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Submissions</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : submissions.length}</p>
+            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : overview?.totalSubmissions ?? 0}</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Acceptance rate</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : `${acceptanceRate}%`}</p>
+            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : `${overview?.acceptanceRate ?? 0}%`}</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Active users</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : activeUsers}</p>
+            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : overview?.activeUsers ?? 0}</p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Average user score</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : averageScore}</p>
+            <p className="mt-3 text-3xl font-black text-slate-900">{loading ? '...' : overview?.averageUserScore ?? 0}</p>
           </div>
         </section>
 
@@ -126,14 +101,14 @@ const AdminAnalyticsPage: React.FC = () => {
             <div className="mt-5 space-y-3">
               {loading ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading analytics...</div>
-              ) : stats.length === 0 ? (
+              ) : (analytics?.problemCategoryPerformance || []).length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">No category stats available.</div>
               ) : (
-                stats.map((item) => (
-                  <article key={item._id} className="rounded-2xl border border-slate-200 px-4 py-4">
+                (analytics?.problemCategoryPerformance || []).map((item) => (
+                  <article key={item.difficulty} className="rounded-2xl border border-slate-200 px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-900">{item._id || 'Uncategorized'}</p>
-                      <span className="text-sm text-slate-500">{item.count} problems</span>
+                      <p className="font-semibold text-slate-900">{item.difficulty}</p>
+                      <span className="text-sm text-slate-500">{item.acceptanceRate}% accepted</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.totalSubmissions} submissions · {item.totalAccepted} accepted</p>
                   </article>
@@ -148,13 +123,13 @@ const AdminAnalyticsPage: React.FC = () => {
               <div className="mt-5 space-y-3">
                 {loading ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading languages...</div>
-                ) : languageBreakdown.length === 0 ? (
+                ) : (analytics?.submissionLanguagesDistribution || []).length === 0 ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">No submission data available.</div>
                 ) : (
-                  languageBreakdown.map(([language, count]) => (
-                    <div key={language} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
-                      <p className="font-semibold text-slate-900">{language}</p>
-                      <p className="text-sm text-slate-600">{count} submissions</p>
+                  (analytics?.submissionLanguagesDistribution || []).map((item) => (
+                    <div key={item.language} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                      <p className="font-semibold text-slate-900">{item.language}</p>
+                      <p className="text-sm text-slate-600">{item.count} submissions</p>
                     </div>
                   ))
                 )}
@@ -166,13 +141,13 @@ const AdminAnalyticsPage: React.FC = () => {
               <div className="mt-5 space-y-3">
                 {loading ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading difficulty mix...</div>
-                ) : difficultyBreakdown.length === 0 ? (
+                ) : (analytics?.difficultyMix || []).length === 0 ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">No problems available.</div>
                 ) : (
-                  difficultyBreakdown.map(([difficulty, count]) => (
-                    <div key={difficulty} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
-                      <p className="font-semibold text-slate-900">{difficulty}</p>
-                      <p className="text-sm text-slate-600">{count} problems</p>
+                  (analytics?.difficultyMix || []).map((item) => (
+                    <div key={item.difficulty} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                      <p className="font-semibold text-slate-900">{item.difficulty}</p>
+                      <p className="text-sm text-slate-600">{item.count} problems</p>
                     </div>
                   ))
                 )}

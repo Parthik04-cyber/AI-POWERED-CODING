@@ -6,4 +6,5 @@ export declare const getProblemSubmissions: (req: Request, res: Response) => Pro
 export declare const getLeaderboard: (req: Request, res: Response) => Promise<void>;
 export declare const executeCode: (req: Request, res: Response) => Promise<void>;
 export declare const getAllSubmissionsAdmin: (req: Request, res: Response) => Promise<void>;
+export declare const getAdminAnalytics: (_req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=submissionController.d.ts.map

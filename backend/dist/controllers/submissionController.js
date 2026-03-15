@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllSubmissionsAdmin = exports.executeCode = exports.getLeaderboard = exports.getProblemSubmissions = exports.getUserSubmissions = exports.getSubmissionById = exports.submitCode = void 0;
+exports.getAdminAnalytics = exports.getAllSubmissionsAdmin = exports.executeCode = exports.getLeaderboard = exports.getProblemSubmissions = exports.getUserSubmissions = exports.getSubmissionById = exports.submitCode = void 0;
 const submissionService_1 = __importDefault(require("../services/submissionService"));
 const submitCode = async (req, res) => {
     try {
@@ -102,4 +102,14 @@ const getAllSubmissionsAdmin = async (req, res) => {
     }
 };
 exports.getAllSubmissionsAdmin = getAllSubmissionsAdmin;
+const getAdminAnalytics = async (_req, res) => {
+    try {
+        const analytics = await submissionService_1.default.getAdminAnalytics();
+        res.status(200).json(analytics);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.getAdminAnalytics = getAdminAnalytics;
 //# sourceMappingURL=submissionController.js.map

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Layout from '@/layouts/MainLayout';
 import { useAuthStore } from '@/utils/store';
+import { discussAPI } from '@/services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -713,6 +714,148 @@ const AIModal: React.FC<{ post: Post; onClose: () => void }> = ({ post, onClose 
   );
 };
 
+// ─── Report Modal ─────────────────────────────────────────────────────────────
+
+const REPORT_REASONS = [
+  { value: 'spam', label: 'Spam or self-promotion' },
+  { value: 'harassment', label: 'Harassment or hate speech' },
+  { value: 'misinformation', label: 'Misinformation or misleading content' },
+  { value: 'nsfw', label: 'NSFW or inappropriate content' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+type ReportReason = typeof REPORT_REASONS[number]['value'];
+
+const ReportModal: React.FC<{
+  postId: string;
+  postTitle: string;
+  onClose: () => void;
+}> = ({ postId, postTitle, onClose }) => {
+  const [reason, setReason] = useState<ReportReason>('spam');
+  const [details, setDetails] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await discussAPI.reportPost(postId, reason, details.trim() || undefined);
+      setDone(true);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to submit report. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Report Post</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
+            <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {done ? (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mb-1">Report submitted</h3>
+              <p className="text-sm text-slate-500">Our moderation team will review this post. Thanks for keeping the community safe.</p>
+              <button
+                onClick={onClose}
+                className="mt-5 px-6 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <p className="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2 line-clamp-2">
+                Reporting: <span className="font-medium text-slate-700">{postTitle}</span>
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
+                  Reason for report
+                </label>
+                <div className="space-y-2">
+                  {REPORT_REASONS.map((r) => (
+                    <label
+                      key={r.value}
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        reason === r.value
+                          ? 'border-rose-400 bg-rose-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="reason"
+                        value={r.value}
+                        checked={reason === r.value}
+                        onChange={() => setReason(r.value)}
+                        className="accent-rose-500"
+                      />
+                      <span className="text-sm text-slate-700">{r.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                  Additional details <span className="font-normal normal-case text-slate-400">(optional)</span>
+                </label>
+                <textarea
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Provide more context if helpful..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-400 resize-none"
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-rose-600 bg-rose-50 rounded-lg px-3 py-2">{error}</p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+                >
+                  {loading ? 'Submitting…' : 'Submit Report'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Post Card ────────────────────────────────────────────────────────────────
 
 const PostCard: React.FC<{
@@ -720,7 +863,8 @@ const PostCard: React.FC<{
   onUpvote: (id: string) => void;
   onAI: (post: Post) => void;
   onVote: (postId: string, optionIdx: number) => void;
-}> = ({ post, onUpvote, onAI, onVote }) => {
+  onReport: (post: Post) => void;
+}> = ({ post, onUpvote, onAI, onVote, onReport }) => {
   const TYPE_COLORS: Record<PostType, string> = {
     discussion: 'bg-slate-100 text-slate-600',
     poll: 'bg-amber-100 text-amber-700',
@@ -834,9 +978,13 @@ const PostCard: React.FC<{
           AI Suggest
         </button>
 
-        <button className="p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors">
+        <button
+          onClick={() => onReport(post)}
+          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+          title="Report this post"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
           </svg>
         </button>
       </div>
@@ -848,14 +996,67 @@ const PostCard: React.FC<{
 
 const DiscussPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [trendingTopics, setTrendingTopics] = useState(TRENDING_TOPICS);
   const [activeCategory, setActiveCategory] = useState('For You');
   const [activeBanner, setActiveBanner] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBuddyFinder, setShowBuddyFinder] = useState(false);
   const [aiPost, setAiPost] = useState<Post | null>(null);
+  const [reportPost, setReportPost] = useState<Post | null>(null);
   const [search, setSearch] = useState('');
   const bannerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load posts from API
+  const loadPosts = useCallback(async () => {
+    setLoadingPosts(true);
+    try {
+      const res = await discussAPI.getPosts({
+        category: activeCategory !== 'For You' ? activeCategory : undefined,
+        limit: 30,
+      });
+      const serverPosts: Post[] = (res.data?.posts || []).map((p: any) => ({
+        id: p.id,
+        author: p.author,
+        authorHandle: p.authorHandle,
+        avatarColor: p.avatarColor || 'bg-slate-500',
+        initials: p.initials || '??',
+        title: p.title,
+        description: p.description,
+        upvotes: p.upvotes || 0,
+        comments: p.comments || 0,
+        views: p.views || 0,
+        timestamp: p.timestamp,
+        category: p.category,
+        tags: p.tags || [],
+        isUpvoted: p.isUpvoted || false,
+        type: p.type || 'discussion',
+        poll: p.poll || undefined,
+        linkedProblem: p.linkedProblem || undefined,
+        company: p.company || undefined,
+      }));
+      // If API returns data, use it; otherwise fall back to INITIAL_POSTS
+      setPosts(serverPosts.length > 0 ? serverPosts : INITIAL_POSTS);
+    } catch {
+      // Gracefully fall back to static mock data when backend is unreachable
+      setPosts(INITIAL_POSTS);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }, [activeCategory]);
+
+  useEffect(() => { loadPosts(); }, [loadPosts]);
+
+  // Load trending topics from API
+  useEffect(() => {
+    discussAPI.getTrendingTopics()
+      .then((res) => {
+        const topics = res.data?.topics || [];
+        if (topics.length > 0) setTrendingTopics(topics);
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto-rotate banners
   useEffect(() => {
@@ -865,7 +1066,8 @@ const DiscussPage: React.FC = () => {
     return () => { if (bannerTimer.current) clearInterval(bannerTimer.current); };
   }, []);
 
-  const handleUpvote = (id: string) => {
+  const handleUpvote = async (id: string) => {
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id
@@ -873,52 +1075,128 @@ const DiscussPage: React.FC = () => {
           : p
       )
     );
+    if (user) {
+      try {
+        const res = await discussAPI.upvotePost(id);
+        const { upvotes, isUpvoted } = res.data;
+        setPosts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, upvotes, isUpvoted } : p))
+        );
+      } catch {
+        // Revert optimistic update on failure
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === id
+              ? { ...p, isUpvoted: !p.isUpvoted, upvotes: p.isUpvoted ? p.upvotes - 1 : p.upvotes + 1 }
+              : p
+          )
+        );
+      }
+    }
   };
 
-  const handleVote = (postId: string, optionIdx: number) => {
+  const handleVote = async (postId: string, optionIdx: number) => {
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId || !p.poll) return p;
-        if (p.votedOptionIndex !== undefined) return p; // already voted
+        if (p.votedOptionIndex !== undefined) return p;
         const updatedPoll = p.poll.map((opt, i) =>
           i === optionIdx ? { ...opt, votes: opt.votes + 1 } : opt
         );
         return { ...p, poll: updatedPoll, votedOptionIndex: optionIdx };
       })
     );
+    try {
+      await discussAPI.votePoll(postId, optionIdx);
+    } catch {
+      // Best-effort; local state already updated
+    }
   };
 
-  const handleCreatePost = (newPost: Partial<Post>) => {
-    const post: Post = {
-      id: String(Date.now()),
-      author: user?.username || 'Anonymous',
-      authorHandle: user?.username?.toLowerCase() || 'anon',
-      avatarColor: 'bg-slate-500',
-      initials: (user?.username || 'AN').slice(0, 2).toUpperCase(),
-      upvotes: 0,
-      comments: 0,
-      views: 0,
-      timestamp: 'just now',
-      isUpvoted: false,
-      ...newPost,
-      title: newPost.title || '',
-      description: newPost.description || '',
-      category: newPost.category || 'For You',
-      tags: newPost.tags || [],
-      type: newPost.type as PostType || 'discussion',
-    };
-    setPosts((prev) => [post, ...prev]);
+  const handleCreatePost = async (newPost: Partial<Post>) => {
+    if (user) {
+      try {
+        const res = await discussAPI.createPost({
+          title: newPost.title || '',
+          description: newPost.description || '',
+          category: newPost.category || 'For You',
+          type: newPost.type,
+          tags: newPost.tags,
+          company: newPost.company,
+          pollOptions: newPost.poll?.map((o) => o.text),
+        });
+        const created: Post = {
+          id: res.data.id,
+          author: res.data.author,
+          authorHandle: res.data.authorHandle,
+          avatarColor: res.data.avatarColor || 'bg-slate-500',
+          initials: res.data.initials || (user.username || 'AN').slice(0, 2).toUpperCase(),
+          upvotes: 0,
+          comments: 0,
+          views: 0,
+          timestamp: 'just now',
+          isUpvoted: false,
+          title: res.data.title,
+          description: res.data.description,
+          category: res.data.category,
+          tags: res.data.tags || [],
+          type: (res.data.type || 'discussion') as PostType,
+          poll: res.data.poll,
+          company: res.data.company,
+          linkedProblem: res.data.linkedProblem,
+        };
+        setPosts((prev) => [created, ...prev]);
+      } catch {
+        // Fallback: add locally even if API fails
+        const post: Post = {
+          id: String(Date.now()),
+          author: user.fullName || user.username,
+          authorHandle: user.username?.toLowerCase() || 'anon',
+          avatarColor: 'bg-slate-500',
+          initials: (user.username || 'AN').slice(0, 2).toUpperCase(),
+          upvotes: 0, comments: 0, views: 0,
+          timestamp: 'just now',
+          isUpvoted: false,
+          ...newPost,
+          title: newPost.title || '',
+          description: newPost.description || '',
+          category: newPost.category || 'For You',
+          tags: newPost.tags || [],
+          type: (newPost.type as PostType) || 'discussion',
+        };
+        setPosts((prev) => [post, ...prev]);
+      }
+    } else {
+      // Not logged in — just add locally (will be rejected by API anyway)
+      const post: Post = {
+        id: String(Date.now()),
+        author: 'Anonymous',
+        authorHandle: 'anon',
+        avatarColor: 'bg-slate-500',
+        initials: 'AN',
+        upvotes: 0, comments: 0, views: 0,
+        timestamp: 'just now',
+        isUpvoted: false,
+        ...newPost,
+        title: newPost.title || '',
+        description: newPost.description || '',
+        category: newPost.category || 'For You',
+        tags: newPost.tags || [],
+        type: (newPost.type as PostType) || 'discussion',
+      };
+      setPosts((prev) => [post, ...prev]);
+    }
     setShowCreateModal(false);
   };
 
   const filteredPosts = posts.filter((p) => {
-    const matchesCategory = activeCategory === 'For You' || p.category === activeCategory;
     const matchesSearch =
       !search ||
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.description.toLowerCase().includes(search.toLowerCase()) ||
       p.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    return matchesSearch;
   });
 
   const banner = BANNERS[activeBanner];
@@ -1050,7 +1328,23 @@ const DiscussPage: React.FC = () => {
             </div>
 
             {/* Post Feed */}
-            {filteredPosts.length === 0 ? (
+            {loadingPosts ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white border border-slate-100 rounded-2xl p-5 animate-pulse">
+                    <div className="flex gap-3">
+                      <div className="w-9 h-9 rounded-full bg-slate-200 shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-slate-200 rounded w-1/3" />
+                        <div className="h-4 bg-slate-200 rounded w-3/4" />
+                        <div className="h-3 bg-slate-200 rounded w-full" />
+                        <div className="h-3 bg-slate-200 rounded w-2/3" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredPosts.length === 0 ? (
               <div className="text-center py-20 text-slate-400">
                 <svg className="w-12 h-12 mx-auto mb-3 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -1067,6 +1361,7 @@ const DiscussPage: React.FC = () => {
                     onUpvote={handleUpvote}
                     onAI={setAiPost}
                     onVote={handleVote}
+                    onReport={setReportPost}
                   />
                 ))}
               </div>
@@ -1085,7 +1380,7 @@ const DiscussPage: React.FC = () => {
                 Trending Topics
               </h3>
               <div className="space-y-2">
-                {TRENDING_TOPICS.map((topic, i) => (
+                {trendingTopics.map((topic, i) => (
                   <button
                     key={topic.tag}
                     onClick={() => setSearch(topic.tag)}
@@ -1096,9 +1391,6 @@ const DiscussPage: React.FC = () => {
                       <span className="text-sm text-slate-700 group-hover:text-blue-600 font-medium transition-colors">
                         #{topic.tag}
                       </span>
-                      {topic.hot && (
-                        <span className="text-xs bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-medium">hot</span>
-                      )}
                     </div>
                     <span className="text-xs text-slate-400">{topic.posts.toLocaleString()}</span>
                   </button>
@@ -1198,6 +1490,13 @@ const DiscussPage: React.FC = () => {
         )}
         {aiPost && (
           <AIModal post={aiPost} onClose={() => setAiPost(null)} />
+        )}
+        {reportPost && (
+          <ReportModal
+            postId={reportPost.id}
+            postTitle={reportPost.title}
+            onClose={() => setReportPost(null)}
+          />
         )}
       </div>
     </Layout>

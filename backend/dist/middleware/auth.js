@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.errorHandler = exports.adminMiddleware = exports.authMiddleware = void 0;
+exports.errorHandler = exports.adminMiddleware = exports.optionalAuthMiddleware = exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authMiddleware = (req, res, next) => {
     try {
@@ -25,6 +25,20 @@ const authMiddleware = (req, res, next) => {
     }
 };
 exports.authMiddleware = authMiddleware;
+const optionalAuthMiddleware = (req, _res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (token) {
+            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+            req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+        }
+    }
+    catch (_e) {
+        // Ignore invalid tokens — just proceed without user
+    }
+    next();
+};
+exports.optionalAuthMiddleware = optionalAuthMiddleware;
 const adminMiddleware = (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') {
         res.status(403).json({ error: 'Access denied. Admin only.' });

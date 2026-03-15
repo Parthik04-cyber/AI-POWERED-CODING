@@ -43,6 +43,7 @@ const router = express_1.default.Router();
 router.post('/', auth_1.authMiddleware, submissionController.submitCode);
 router.get('/leaderboard', submissionController.getLeaderboard);
 router.post('/execute', submissionController.executeCode);
+router.get('/admin/analytics', auth_1.authMiddleware, auth_1.adminMiddleware, submissionController.getAdminAnalytics);
 router.get('/admin/all', auth_1.authMiddleware, auth_1.adminMiddleware, submissionController.getAllSubmissionsAdmin);
 router.get('/user', auth_1.authMiddleware, submissionController.getUserSubmissions);
 router.get('/problem/:problemId', submissionController.getProblemSubmissions);

@@ -17,9 +17,35 @@ const executeRoutes_1 = __importDefault(require("./routes/executeRoutes"));
 const storeRoutes_1 = __importDefault(require("./routes/storeRoutes"));
 const contestRoutes_1 = __importDefault(require("./routes/contestRoutes"));
 const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
+const discussRoutes_1 = __importDefault(require("./routes/discussRoutes"));
+const moderationRoutes_1 = __importDefault(require("./routes/moderationRoutes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
+const parsePort = (value, fallback = 5000) => {
+    if (!value) {
+        return fallback;
+    }
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+        console.warn(`Invalid PORT value "${value}". Falling back to ${fallback}.`);
+        return fallback;
+    }
+    return parsed;
+};
+const parseNonNegativeInteger = (value, fallback) => {
+    if (!value) {
+        return fallback;
+    }
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+        console.warn(`Invalid numeric value "${value}". Falling back to ${fallback}.`);
+        return fallback;
+    }
+    return parsed;
+};
+const REQUESTED_PORT = parsePort(process.env.PORT, 5000);
+const AUTO_FIND_PORT = (process.env.AUTO_FIND_PORT || 'true').toLowerCase() !== 'false';
+const PORT_RETRY_ATTEMPTS = parseNonNegativeInteger(process.env.PORT_RETRY_ATTEMPTS, 10);
 const configuredOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
     .split(',')
     .map((origin) => origin.trim())
@@ -57,6 +83,8 @@ app.use('/api/execute', executeRoutes_1.default);
 app.use('/api/store', storeRoutes_1.default);
 app.use('/api/contests', contestRoutes_1.default);
 app.use('/api/courses', courseRoutes_1.default);
+app.use('/api/discuss', discussRoutes_1.default);
+app.use('/api/moderation', moderationRoutes_1.default);
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'Server is running' });
@@ -80,10 +108,30 @@ const startServer = async () => {
         else {
             console.log(`✓ Default admin already exists: ${adminSetup.email}`);
         }
-        app.listen(PORT, () => {
-            console.log(`✓ Server running on port ${PORT}`);
-            console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-        });
+        const startListening = async (initialPort, retriesRemaining) => {
+            try {
+                const server = await new Promise((resolve, reject) => {
+                    const createdServer = app.listen(initialPort, () => resolve(createdServer));
+                    createdServer.once('error', reject);
+                });
+                return { server, port: initialPort };
+            }
+            catch (error) {
+                const listenError = error;
+                if (listenError.code === 'EADDRINUSE' && AUTO_FIND_PORT && retriesRemaining > 0) {
+                    const fallbackPort = initialPort + 1;
+                    console.warn(`Port ${initialPort} is in use. Retrying on port ${fallbackPort} (${retriesRemaining} attempts left).`);
+                    return startListening(fallbackPort, retriesRemaining - 1);
+                }
+                throw error;
+            }
+        };
+        const { port: activePort } = await startListening(REQUESTED_PORT, PORT_RETRY_ATTEMPTS);
+        console.log(`✓ Server running on port ${activePort}`);
+        if (activePort !== REQUESTED_PORT) {
+            console.log(`⚠ Requested port ${REQUESTED_PORT} was unavailable, using ${activePort} instead.`);
+        }
+        console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     }
     catch (error) {
         console.error('✗ Server startup failed:', error);

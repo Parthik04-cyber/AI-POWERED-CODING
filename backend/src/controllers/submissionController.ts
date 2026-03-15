@@ -99,3 +99,12 @@ export const getAllSubmissionsAdmin = async (req: Request, res: Response): Promi
     res.status(400).json({ error: error.message });
   }
 };
+
+export const getAdminAnalytics = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const analytics = await submissionService.getAdminAnalytics();
+    res.status(200).json(analytics);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};

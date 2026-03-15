@@ -11,6 +11,7 @@ declare global {
     }
 }
 export declare const authMiddleware: (req: Request, res: Response, next: NextFunction) => void;
+export declare const optionalAuthMiddleware: (req: Request, _res: Response, next: NextFunction) => void;
 export declare const adminMiddleware: (req: Request, res: Response, next: NextFunction) => void;
 export declare const errorHandler: (error: Error, req: Request, res: Response, next: NextFunction) => void;
 //# sourceMappingURL=auth.d.ts.map

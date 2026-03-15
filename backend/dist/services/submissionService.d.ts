@@ -10,6 +10,32 @@ interface Judge0Response {
     memory?: number;
     stdout?: string;
 }
+interface AnalyticsOverview {
+    totalSubmissions: number;
+    acceptanceRate: number;
+    activeUsers: number;
+    averageUserScore: number;
+}
+interface DifficultyPerformance {
+    difficulty: 'Easy' | 'Medium' | 'Hard';
+    totalSubmissions: number;
+    totalAccepted: number;
+    acceptanceRate: number;
+}
+interface LanguageDistribution {
+    language: string;
+    count: number;
+}
+interface DifficultyMix {
+    difficulty: 'Easy' | 'Medium' | 'Hard';
+    count: number;
+}
+export interface AdminAnalyticsResponse {
+    overview: AnalyticsOverview;
+    problemCategoryPerformance: DifficultyPerformance[];
+    submissionLanguagesDistribution: LanguageDistribution[];
+    difficultyMix: DifficultyMix[];
+}
 declare class SubmissionService {
     private judge0BaseUrl;
     private judge0ApiKey;
@@ -33,6 +59,7 @@ declare class SubmissionService {
         submissions: ISubmission[];
         total: number;
     }>;
+    getAdminAnalytics(): Promise<AdminAnalyticsResponse>;
     private syncLeaderboardEntry;
     private generateAndAttachAIFeedback;
     private parseJsonSafely;

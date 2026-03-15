@@ -80,6 +80,8 @@ export const submissionAPI = {
     api.get(`/submissions/problem/${problemId}`, { params: { skip, limit } }),
   getLeaderboard: (limit = 10) =>
     api.get('/submissions/leaderboard', { params: { limit } }),
+  getAdminAnalytics: () =>
+    api.get('/submissions/admin/analytics'),
   getAllSubmissionsAdmin: (skip = 0, limit = 20) =>
     api.get('/submissions/admin/all', { params: { skip, limit } }),
 };
@@ -148,10 +150,28 @@ export const discussAPI = {
     pollOptions?: string[];
   }) => api.post('/discuss/posts', data),
   upvotePost: (id: string) => api.post(`/discuss/posts/${id}/upvote`),
+  votePoll: (id: string, optionIndex: number) =>
+    api.post(`/discuss/posts/${id}/vote-poll`, { optionIndex }),
+  reportPost: (id: string, reason: string, details?: string) =>
+    api.post(`/discuss/posts/${id}/report`, { reason, details }),
   getTrendingTopics: () => api.get('/discuss/trending'),
   getAISuggestion: (postId: string) => api.post(`/discuss/posts/${postId}/ai-suggest`),
   findBuddy: (data: { topics: string[]; level: string; availability: string }) =>
     api.post('/discuss/buddy-finder', data),
+};
+
+// Admin Moderation APIs
+export const moderationAPI = {
+  getStats: () => api.get('/moderation/stats'),
+  getQueue: (params?: { skip?: number; limit?: number; status?: string }) =>
+    api.get('/moderation/queue', { params }),
+  takeAction: (data: {
+    reportId: string;
+    discussionId: string;
+    action: 'approve' | 'delete_post' | 'warn_user' | 'escalate' | 'dismiss';
+    notes?: string;
+  }) => api.post('/moderation/actions', data),
+  getActionHistory: (reportId: string) => api.get(`/moderation/actions/${reportId}`),
 };
 
 export default api;

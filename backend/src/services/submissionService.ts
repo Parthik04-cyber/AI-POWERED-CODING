@@ -15,6 +15,37 @@ interface Judge0Response {
   stdout?: string;
 }
 
+interface AnalyticsOverview {
+  totalSubmissions: number;
+  acceptanceRate: number;
+  activeUsers: number;
+  averageUserScore: number;
+}
+
+interface DifficultyPerformance {
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  totalSubmissions: number;
+  totalAccepted: number;
+  acceptanceRate: number;
+}
+
+interface LanguageDistribution {
+  language: string;
+  count: number;
+}
+
+interface DifficultyMix {
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  count: number;
+}
+
+export interface AdminAnalyticsResponse {
+  overview: AnalyticsOverview;
+  problemCategoryPerformance: DifficultyPerformance[];
+  submissionLanguagesDistribution: LanguageDistribution[];
+  difficultyMix: DifficultyMix[];
+}
+
 class SubmissionService {
   private judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || 'https://judge0-ce.p.rapidapi.com';
   private judge0ApiKey = process.env.JUDGE0_API_KEY || '';
@@ -298,6 +329,123 @@ class SubmissionService {
     const submissions = submissionsResult.rows.map((row) => mapSubmissionRow(row));
     const total = Number(totalResult.rows[0]?.total || 0);
     return { submissions, total };
+  }
+
+  async getAdminAnalytics(): Promise<AdminAnalyticsResponse> {
+    const [
+      overviewResult,
+      difficultyPerformanceResult,
+      languageDistributionResult,
+      difficultyMixResult,
+    ] = await Promise.all([
+      query<{
+        total_submissions: string;
+        accepted_submissions: string;
+        active_users: string;
+        average_user_score: string;
+      }>(
+        `
+          SELECT
+            (SELECT COUNT(*)::text FROM submissions) AS total_submissions,
+            (SELECT COUNT(*)::text FROM submissions WHERE status = 'SUCCESS') AS accepted_submissions,
+            (SELECT COUNT(DISTINCT user_id)::text FROM submissions WHERE created_at >= NOW() - INTERVAL '30 days') AS active_users,
+            (SELECT COALESCE(AVG(score), 0)::text FROM users) AS average_user_score
+        `
+      ),
+      query<{
+        difficulty: 'Easy' | 'Medium' | 'Hard';
+        total_submissions: string;
+        total_accepted: string;
+      }>(
+        `
+          WITH difficulty_levels AS (
+            SELECT unnest(ARRAY['Easy', 'Medium', 'Hard'])::text AS difficulty
+          )
+          SELECT
+            d.difficulty,
+            COALESCE(COUNT(s.id), 0)::text AS total_submissions,
+            COALESCE(COUNT(*) FILTER (WHERE s.status = 'SUCCESS'), 0)::text AS total_accepted
+          FROM difficulty_levels d
+          LEFT JOIN problems p ON p.difficulty = d.difficulty
+          LEFT JOIN submissions s ON s.problem_id = p.id
+          GROUP BY d.difficulty
+          ORDER BY CASE d.difficulty
+            WHEN 'Easy' THEN 1
+            WHEN 'Medium' THEN 2
+            WHEN 'Hard' THEN 3
+            ELSE 4
+          END
+        `
+      ),
+      query<{ language: string; count: string }>(
+        `
+          SELECT
+            COALESCE(NULLIF(TRIM(language), ''), 'unknown') AS language,
+            COUNT(*)::text AS count
+          FROM submissions
+          GROUP BY language
+          ORDER BY COUNT(*) DESC, language ASC
+        `
+      ),
+      query<{ difficulty: 'Easy' | 'Medium' | 'Hard'; count: string }>(
+        `
+          WITH difficulty_levels AS (
+            SELECT unnest(ARRAY['Easy', 'Medium', 'Hard'])::text AS difficulty
+          )
+          SELECT
+            d.difficulty,
+            COALESCE(COUNT(p.id), 0)::text AS count
+          FROM difficulty_levels d
+          LEFT JOIN problems p ON p.difficulty = d.difficulty
+          GROUP BY d.difficulty
+          ORDER BY CASE d.difficulty
+            WHEN 'Easy' THEN 1
+            WHEN 'Medium' THEN 2
+            WHEN 'Hard' THEN 3
+            ELSE 4
+          END
+        `
+      ),
+    ]);
+
+    const overviewRow = overviewResult.rows[0] || {
+      total_submissions: '0',
+      accepted_submissions: '0',
+      active_users: '0',
+      average_user_score: '0',
+    };
+
+    const totalSubmissions = Number(overviewRow.total_submissions || 0);
+    const acceptedSubmissions = Number(overviewRow.accepted_submissions || 0);
+    const acceptanceRate = totalSubmissions > 0 ? Number(((acceptedSubmissions / totalSubmissions) * 100).toFixed(1)) : 0;
+
+    return {
+      overview: {
+        totalSubmissions,
+        acceptanceRate,
+        activeUsers: Number(overviewRow.active_users || 0),
+        averageUserScore: Number(Number(overviewRow.average_user_score || 0).toFixed(1)),
+      },
+      problemCategoryPerformance: difficultyPerformanceResult.rows.map((row) => {
+        const submissions = Number(row.total_submissions || 0);
+        const accepted = Number(row.total_accepted || 0);
+
+        return {
+          difficulty: row.difficulty,
+          totalSubmissions: submissions,
+          totalAccepted: accepted,
+          acceptanceRate: submissions > 0 ? Number(((accepted / submissions) * 100).toFixed(1)) : 0,
+        };
+      }),
+      submissionLanguagesDistribution: languageDistributionResult.rows.map((row) => ({
+        language: row.language,
+        count: Number(row.count || 0),
+      })),
+      difficultyMix: difficultyMixResult.rows.map((row) => ({
+        difficulty: row.difficulty,
+        count: Number(row.count || 0),
+      })),
+    };
   }
 
   private async syncLeaderboardEntry(userId: string): Promise<void> {
