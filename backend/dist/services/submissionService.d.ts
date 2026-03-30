@@ -39,8 +39,12 @@ export interface AdminAnalyticsResponse {
 declare class SubmissionService {
     private judge0BaseUrl;
     private judge0ApiKey;
+    private judge0ApiHost;
     private openaiClient;
+    private isRapidApiProvider;
+    private getResolvedJudge0Host;
     private getJudge0Headers;
+    private postToJudge0;
     private getSubmissionSelect;
     executeCode(code: string, language: string, stdin?: string): Promise<Judge0Response>;
     submitCode(userId: string, problemId: string, code: string, language: string): Promise<ISubmission>;

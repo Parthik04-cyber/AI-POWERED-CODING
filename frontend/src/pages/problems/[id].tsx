@@ -56,7 +56,7 @@ const ProblemDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Layout>
+      <Layout showFooter={false}>
         <div className="text-center py-20">Loading problem...</div>
       </Layout>
     );
@@ -64,29 +64,29 @@ const ProblemDetailPage: React.FC = () => {
 
   if (!problem) {
     return (
-      <Layout>
+      <Layout showFooter={false}>
         <div className="text-center py-20 text-red-400">Problem not found</div>
       </Layout>
     );
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h1 className="text-4xl font-bold mb-4">{problem.title}</h1>
-        <div className="flex gap-2 mb-6">
+    <Layout showFooter={false}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        <h1 className="mb-3 text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">{problem.title}</h1>
+        <div className="mb-5 flex gap-2">
           <span className="px-3 py-1 rounded bg-blue-900 text-blue-200">{problem.difficulty}</span>
           <span className="px-3 py-1 rounded bg-gray-900 text-gray-300">{problem.category}</span>
         </div>
 
-        <h2 className="text-xl font-bold mb-3">Description</h2>
-        <p className="text-gray-800 mb-6">{problem.description}</p>
+        <h2 className="mb-2 text-base font-semibold text-slate-900">Description</h2>
+        <p className="mb-5 text-sm leading-6 text-slate-700">{problem.description}</p>
 
-        <h2 className="text-xl font-bold mb-3">Examples</h2>
-        <div className="space-y-3 mb-8">
+        <h2 className="mb-2 text-base font-semibold text-slate-900">Examples</h2>
+        <div className="mb-6 space-y-2.5">
           {(problem.examples || []).map((example: any, index: number) => (
-            <div key={index} className="bg-dark-secondary border border-dark-tertiary rounded p-4">
-              <p className="font-mono text-sm mb-1 text-white">Input: {example.input}</p>
+            <div key={index} className="rounded-lg border border-dark-tertiary bg-dark-secondary p-3">
+              <p className="mb-1 font-mono text-sm text-white">Input: {example.input}</p>
               <p className="font-mono text-sm text-white">Output: {example.output}</p>
             </div>
           ))}
@@ -96,7 +96,7 @@ const ProblemDetailPage: React.FC = () => {
           type="button"
           onClick={handleSolveInEditor}
           disabled={isNavigating}
-          className="inline-block px-6 py-3 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+          className="inline-block rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isNavigating ? 'Opening Editor...' : 'Solve In Editor'}
         </button>

@@ -6,6 +6,7 @@ import { subscriptionAccessMiddleware } from '../middleware/subscription';
 const router = express.Router();
 
 router.post('/', authMiddleware, subscriptionAccessMiddleware, submissionController.submitCode);
+router.post('/run-samples', authMiddleware, subscriptionAccessMiddleware, submissionController.runCodeWithSamples);
 router.get('/leaderboard', submissionController.getLeaderboard);
 router.post('/execute', authMiddleware, subscriptionAccessMiddleware, submissionController.executeCode);
 router.get('/admin/analytics', authMiddleware, adminMiddleware, submissionController.getAdminAnalytics);

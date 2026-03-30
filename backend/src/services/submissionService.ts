@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { ISubmission } from '../models/Submission';
 import { query } from '../config/database';
 import { generateId, getUserById, mapLeaderboardRow, mapSubmissionRow } from '../utils/persistence';
+import { compareOutputs, normalizeOutput, getOutputDifference } from '../utils/outputNormalization';
 import problemService from './problemService';
 import storeService from './storeService';
 
@@ -47,7 +48,7 @@ export interface AdminAnalyticsResponse {
 }
 
 class SubmissionService {
-  private judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || 'https://judge0-ce.p.rapidapi.com';
+  private judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || 'http://localhost:2358';
   private judge0ApiKey = process.env.JUDGE0_API_KEY || '';
   private judge0ApiHost = process.env.JUDGE0_API_HOST || '';
   private openaiClient = process.env.OPENAI_API_KEY
@@ -66,7 +67,7 @@ class SubmissionService {
     try {
       return new URL(this.judge0BaseUrl).host;
     } catch {
-      return 'judge0-ce.p.rapidapi.com';
+      return 'ce.judge0.com';
     }
   }
 
@@ -156,6 +157,102 @@ class SubmissionService {
     });
   }
 
+  async runCodeWithTestCases(
+    code: string,
+    language: string,
+    testCases: Array<{ input: string; output: string }>
+  ): Promise<{ testResults: any[]; status: string; testsPassed: number; totalTests: number }> {
+    const languageMap: Record<string, number> = {
+      javascript: 63,
+      python: 71,
+      java: 62,
+      cpp: 54,
+    };
+
+    const languageId = languageMap[language] || 71;
+    let testsPassed = 0;
+    let status = 'SUCCESS';
+    const testCaseResults: any[] = [];
+
+    for (let i = 0; i < testCases.length; i++) {
+      const testCase = testCases[i];
+      const testResult: any = {
+        input: testCase.input,
+        expected: testCase.output,
+        actual: '',
+        passed: false,
+      };
+
+      try {
+        const result = await this.postToJudge0({
+          source_code: code,
+          language_id: languageId,
+          stdin: testCase.input,
+          expected_output: testCase.output,
+        });
+
+        testResult.actual = result.stdout || '';
+        if (result.time) testResult.executionTime = result.time;
+        if (result.memory) testResult.memory = result.memory;
+
+        if (result.status.id === 3) {
+          // Accepted - verify with normalization
+          const isMatch = compareOutputs(testResult.actual, testCase.output);
+          testResult.passed = isMatch;
+          if (isMatch) {
+            testsPassed++;
+          } else {
+            testResult.error = getOutputDifference(testResult.actual, testCase.output);
+            if (status === 'SUCCESS') {
+              status = 'WRONG_ANSWER';
+            }
+          }
+        } else if (result.status.id === 4) {
+          // Wrong Answer
+          testResult.passed = false;
+          testResult.error = getOutputDifference(testResult.actual, testCase.output);
+          if (status === 'SUCCESS') {
+            status = 'WRONG_ANSWER';
+          }
+        } else if (result.status.id === 5) {
+          // Time Limit Exceeded
+          testResult.passed = false;
+          testResult.error = 'Time limit exceeded';
+          if (status === 'SUCCESS') {
+            status = 'TIME_LIMIT_EXCEEDED';
+          }
+        } else if (result.status.id === 6) {
+          // Compilation Error
+          testResult.passed = false;
+          testResult.error = result.compile_output || 'Compilation error';
+          status = 'COMPILE_ERROR';
+          testCaseResults.push(testResult);
+          break;
+        } else if (result.status.id === 7) {
+          // Runtime Error
+          testResult.passed = false;
+          testResult.error = result.runtime_error || 'Runtime error';
+          if (status === 'SUCCESS') {
+            status = 'RUNTIME_ERROR';
+          }
+        }
+      } catch (err: any) {
+        testResult.passed = false;
+        testResult.error = err?.message || 'Failed to execute test case';
+        status = 'RUNTIME_ERROR';
+      }
+
+      testCaseResults.push(testResult);
+    }
+
+    return {
+      testResults: testCaseResults,
+      status,
+      testsPassed,
+      totalTests: testCases.length,
+    };
+  }
+
   async submitCode(
     userId: string,
     problemId: string,
@@ -209,8 +306,17 @@ class SubmissionService {
       let status = 'SUCCESS';
       let output = '';
       let error = '';
+      const testCaseResults: any[] = [];
 
-      for (const testCase of testCases) {
+      for (let i = 0; i < testCases.length; i++) {
+        const testCase = testCases[i];
+        const testResult: any = {
+          input: testCase.input,
+          expected: testCase.output,
+          actual: '',
+          passed: false,
+        };
+
         try {
           const result = await this.postToJudge0({
             source_code: code,
@@ -219,32 +325,67 @@ class SubmissionService {
             expected_output: testCase.output,
           });
 
+          testResult.actual = result.stdout || '';
+          if (result.time) testResult.executionTime = result.time;
+          if (result.memory) testResult.memory = result.memory;
+
           if (result.status.id === 3) {
-            // Accepted
-            testsPassed++;
-            output = result.stdout || '';
+            // Accepted - also verify with our normalization
+            const isMatch = compareOutputs(testResult.actual, testCase.output);
+            testResult.passed = isMatch;
+            if (isMatch) {
+              testsPassed++;
+              output = result.stdout || '';
+            } else {
+              // Output mismatch after normalization
+              testResult.passed = false;
+              testResult.error = getOutputDifference(testResult.actual, testCase.output);
+              if (status === 'SUCCESS') {
+                status = 'WRONG_ANSWER';
+              }
+            }
           } else if (result.status.id === 4) {
-            status = 'WRONG_ANSWER';
-            error = `Expected: ${testCase.output}, Got: ${result.stdout}`;
+            // Wrong Answer
+            testResult.passed = false;
+            const difference = getOutputDifference(testResult.actual, testCase.output);
+            testResult.error = difference || `Expected: "${normalizeOutput(testCase.output)}", Got: "${normalizeOutput(result.stdout || '')}"`;
+            if (status === 'SUCCESS') {
+              status = 'WRONG_ANSWER';
+            }
           } else if (result.status.id === 5) {
-            status = 'TIME_LIMIT_EXCEEDED';
-            error = result.runtime_error || 'Time limit exceeded';
+            // Time Limit Exceeded
+            testResult.passed = false;
+            testResult.error = 'Time limit exceeded';
+            if (status === 'SUCCESS') {
+              status = 'TIME_LIMIT_EXCEEDED';
+            }
           } else if (result.status.id === 6) {
+            // Compilation Error
+            testResult.passed = false;
+            testResult.error = result.compile_output || 'Compilation error';
             status = 'COMPILE_ERROR';
             error = result.compile_output || 'Compilation error';
+            testCaseResults.push(testResult);
             break;
           } else if (result.status.id === 7) {
-            status = 'RUNTIME_ERROR';
-            error = result.runtime_error || 'Runtime error';
+            // Runtime Error
+            testResult.passed = false;
+            testResult.error = result.runtime_error || 'Runtime error';
+            if (status === 'SUCCESS') {
+              status = 'RUNTIME_ERROR';
+            }
           }
 
           if (result.time) executionTime += result.time;
           if (result.memory) memory = Math.max(memory, result.memory);
         } catch (err: any) {
+          testResult.passed = false;
+          testResult.error = err?.message || 'Failed to execute test case';
           status = 'RUNTIME_ERROR';
           error = err?.message || 'Failed to execute test case';
-          break;
         }
+
+        testCaseResults.push(testResult);
       }
 
       const updateResult = await query<any>(
@@ -258,11 +399,12 @@ class SubmissionService {
             memory = $6,
             output = $7,
             error = $8,
+            test_case_results = $9,
             updated_at = NOW()
           WHERE id = $1
           RETURNING *
         `,
-        [submissionId, status, testsPassed, testCases.length, executionTime, memory, output, error || null]
+        [submissionId, status, testsPassed, testCases.length, executionTime, memory, output, error || null, JSON.stringify(testCaseResults)]
       );
 
       const submission = updateResult.rows[0] ? mapSubmissionRow(updateResult.rows[0]) : null;

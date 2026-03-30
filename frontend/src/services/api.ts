@@ -73,6 +73,8 @@ export const problemAPI = {
 export const submissionAPI = {
   submitCode: (data: { problemId: string; code: string; language: string }) =>
     api.post('/submissions', data),
+  runCodeWithSamples: (data: { problemId: string; code: string; language: string }) =>
+    api.post('/submissions/run-samples', data),
   getSubmissionById: (id: string) => api.get(`/submissions/${id}`),
   getUserSubmissions: (skip = 0, limit = 10) =>
     api.get('/submissions/user', { params: { skip, limit } }),

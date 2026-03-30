@@ -237,6 +237,7 @@ const initializeSchema = async (): Promise<void> => {
         error TEXT,
         tests_passed INTEGER NOT NULL DEFAULT 0,
         total_tests INTEGER NOT NULL DEFAULT 0,
+        test_case_results JSONB DEFAULT '[]'::JSONB,
         ai_feedback JSONB,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

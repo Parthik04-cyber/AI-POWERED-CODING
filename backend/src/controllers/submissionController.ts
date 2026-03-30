@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import submissionService from '../services/submissionService';
+import problemService from '../services/problemService';
 
 export const submitCode = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -87,6 +88,38 @@ export const executeCode = async (req: Request, res: Response): Promise<void> =>
     res.status(400).json({ error: error.message || 'Failed to execute code' });
   }
 };
+
+export const runCodeWithSamples = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { problemId, code, language } = req.body;
+
+    if (!problemId || !code || !language) {
+      res.status(400).json({ error: 'Problem ID, code, and language are required' });
+      return;
+    }
+
+    // Fetch problem to get example test cases
+    const problem = await problemService.getProblemById(problemId);
+    if (!problem) {
+      res.status(404).json({ error: 'Problem not found' });
+      return;
+    }
+
+    // Get sample test cases (examples)
+    const sampleTestCases = problem.examples || [];
+    if (sampleTestCases.length === 0) {
+      res.status(400).json({ error: 'Problem has no sample test cases' });
+      return;
+    }
+
+    // Run code against sample test cases
+    const result = await submissionService.runCodeWithTestCases(code, language, sampleTestCases);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to run code' });
+  }
+};
+
 
 export const getAllSubmissionsAdmin = async (req: Request, res: Response): Promise<void> => {
   try {

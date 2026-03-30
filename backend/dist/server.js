@@ -139,5 +139,9 @@ const startServer = async () => {
     }
 };
 startServer();
+const judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || '';
+if (/rapidapi\.com/i.test(judge0BaseUrl) && !process.env.JUDGE0_API_KEY) {
+    console.warn('⚠ JUDGE0_API_KEY is missing while using a RapidAPI Judge0 endpoint. Code execution will fail with 401/403.');
+}
 exports.default = app;
 //# sourceMappingURL=server.js.map

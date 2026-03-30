@@ -1,6 +1,16 @@
 export type SubmissionUserRef = string | { _id: string; username: string; email?: string };
 export type SubmissionProblemRef = string | { _id: string; title: string; difficulty?: 'Easy' | 'Medium' | 'Hard' };
 
+export interface TestCaseResult {
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  error?: string;
+  executionTime?: number;
+  memory?: number;
+}
+
 export interface ISubmission {
   _id: string;
   userId: SubmissionUserRef;
@@ -14,6 +24,7 @@ export interface ISubmission {
   error?: string;
   testsPassed: number;
   totalTests: number;
+  testCaseResults?: TestCaseResult[];
   aiFeedback?: {
     timeComplexity?: string;
     spaceComplexity?: string;

@@ -74,6 +74,11 @@ class ContestService {
             contests,
         };
     }
+    async getPublicContests() {
+        const overview = await this.getAdminOverview();
+        const contests = overview.contests.filter((contest) => contest.status !== 'Draft');
+        return { contests };
+    }
 }
 exports.default = new ContestService();
 //# sourceMappingURL=contestService.js.map

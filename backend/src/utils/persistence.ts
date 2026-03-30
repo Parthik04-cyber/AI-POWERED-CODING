@@ -104,6 +104,9 @@ export const mapSubmissionRow = (row: any): ISubmission => ({
   error: row.error || undefined,
   testsPassed: Number(row.tests_passed || 0),
   totalTests: Number(row.total_tests || 0),
+  testCaseResults: row.test_case_results && typeof row.test_case_results === 'string' 
+    ? JSON.parse(row.test_case_results)
+    : Array.isArray(row.test_case_results) ? row.test_case_results : undefined,
   aiFeedback: row.ai_feedback || undefined,
   createdAt: toDate(row.created_at) || new Date(),
   updatedAt: toDate(row.updated_at) || new Date(),

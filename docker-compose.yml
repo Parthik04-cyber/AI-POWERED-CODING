@@ -15,6 +15,53 @@ services:
     networks:
       - ai-coding-network
 
+  judge0:
+    image: judge0/judge0:latest
+    container_name: ai-coding-judge0
+    ports:
+      - "2358:2358"
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    env_file:
+      - ./judge0.conf
+    privileged: true
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    networks:
+      - ai-coding-network
+
+  judge0-worker:
+    image: judge0/judge0:latest
+    container_name: ai-coding-judge0-worker
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    env_file:
+      - ./judge0.conf
+    privileged: true
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    networks:
+      - ai-coding-network
+
+  judge0-db:
+    image: postgres:16-alpine
+    container_name: ai-coding-judge0-db
+    env_file:
+      - ./judge0.conf
+    volumes:
+      - judge0_db_data:/var/lib/postgresql/data
+    networks:
+      - ai-coding-network
+
+  judge0-redis:
+    image: redis:7-alpine
+    container_name: ai-coding-judge0-redis
+    networks:
+      - ai-coding-network
+
   backend:
     build:
       context: ./backend
@@ -27,18 +74,20 @@ services:
       PORT: 5000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/codemaster
       JWT_SECRET: your_jwt_secret_key_here
-      JUDGE0_API_BASE_URL: https://judge0-ce.p.rapidapi.com
-      JUDGE0_API_KEY: ${JUDGE0_API_KEY}
+      JUDGE0_API_BASE_URL: http://judge0:2358
+      JUDGE0_API_KEY: ${JUDGE0_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       FRONTEND_URL: http://localhost:3000
     depends_on:
       - postgres
+      - judge0
     networks:
       - ai-coding-network
     command: npm run dev
 
 volumes:
   postgres_data:
+  judge0_db_data:
 
 networks:
   ai-coding-network:

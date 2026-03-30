@@ -11,18 +11,64 @@ const problemService_1 = __importDefault(require("./problemService"));
 const storeService_1 = __importDefault(require("./storeService"));
 class SubmissionService {
     constructor() {
-        this.judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || 'https://judge0-ce.p.rapidapi.com';
+        this.judge0BaseUrl = process.env.JUDGE0_API_BASE_URL || 'http://localhost:2358';
         this.judge0ApiKey = process.env.JUDGE0_API_KEY || '';
+        this.judge0ApiHost = process.env.JUDGE0_API_HOST || '';
         this.openaiClient = process.env.OPENAI_API_KEY
             ? new openai_1.default({ apiKey: process.env.OPENAI_API_KEY })
             : null;
     }
+    isRapidApiProvider() {
+        return /rapidapi\.com/i.test(this.judge0BaseUrl);
+    }
+    getResolvedJudge0Host() {
+        if (this.judge0ApiHost.trim()) {
+            return this.judge0ApiHost.trim();
+        }
+        try {
+            return new URL(this.judge0BaseUrl).host;
+        }
+        catch {
+            return 'ce.judge0.com';
+        }
+    }
     getJudge0Headers() {
-        return {
-            'X-RapidAPI-Key': this.judge0ApiKey,
-            'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+        const headers = {
             'Content-Type': 'application/json',
         };
+        if (this.isRapidApiProvider()) {
+            if (!this.judge0ApiKey.trim()) {
+                throw new Error('JUDGE0_API_KEY is missing. Configure a valid RapidAPI Judge0 key in backend/.env');
+            }
+            headers['X-RapidAPI-Key'] = this.judge0ApiKey.trim();
+            headers['X-RapidAPI-Host'] = this.getResolvedJudge0Host();
+            return headers;
+        }
+        // Non-RapidAPI Judge0 deployments usually do not require these headers.
+        // If a key is provided, keep it available via common auth headers.
+        if (this.judge0ApiKey.trim()) {
+            headers['Authorization'] = `Bearer ${this.judge0ApiKey.trim()}`;
+            headers['X-Auth-Token'] = this.judge0ApiKey.trim();
+        }
+        return headers;
+    }
+    async postToJudge0(payload) {
+        try {
+            const response = await axios_1.default.post(`${this.judge0BaseUrl}/submissions?wait=true`, payload, {
+                headers: this.getJudge0Headers(),
+                timeout: 20000,
+            });
+            return response.data;
+        }
+        catch (error) {
+            const status = error?.response?.status;
+            const provider = this.isRapidApiProvider() ? 'RapidAPI Judge0' : 'Judge0';
+            if (status === 401 || status === 403) {
+                throw new Error(`${provider} authorization failed (${status}). Verify JUDGE0_API_KEY and JUDGE0_API_HOST in backend/.env`);
+            }
+            const upstreamMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+            throw new Error(`Judge0 request failed${status ? ` (${status})` : ''}: ${upstreamMessage || 'Unknown error'}`);
+        }
     }
     getSubmissionSelect(includeUser, includeProblem) {
         const joins = [];
@@ -45,14 +91,11 @@ class SubmissionService {
             cpp: 54,
         };
         const languageId = languageMap[language] || 71;
-        const response = await axios_1.default.post(`${this.judge0BaseUrl}/submissions?wait=true`, {
+        return this.postToJudge0({
             source_code: code,
             language_id: languageId,
             stdin,
-        }, {
-            headers: this.getJudge0Headers(),
         });
-        return response.data;
     }
     async submitCode(userId, problemId, code, language) {
         const problemResult = await (0, database_1.query)('SELECT id, test_cases FROM problems WHERE id = $1', [problemId]);
@@ -90,15 +133,12 @@ class SubmissionService {
             let error = '';
             for (const testCase of testCases) {
                 try {
-                    const response = await axios_1.default.post(`${this.judge0BaseUrl}/submissions?wait=true`, {
+                    const result = await this.postToJudge0({
                         source_code: code,
                         language_id: languageId,
                         stdin: testCase.input,
                         expected_output: testCase.output,
-                    }, {
-                        headers: this.getJudge0Headers(),
                     });
-                    const result = response.data;
                     if (result.status.id === 3) {
                         // Accepted
                         testsPassed++;
@@ -128,7 +168,7 @@ class SubmissionService {
                 }
                 catch (err) {
                     status = 'RUNTIME_ERROR';
-                    error = 'Failed to execute test case';
+                    error = err?.message || 'Failed to execute test case';
                     break;
                 }
             }

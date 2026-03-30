@@ -40,6 +40,7 @@ const express_1 = __importDefault(require("express"));
 const contestController = __importStar(require("../controllers/contestController"));
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
+router.get('/', contestController.getPublicContests);
 router.get('/admin/overview', auth_1.authMiddleware, auth_1.adminMiddleware, contestController.getAdminContestOverview);
 exports.default = router;
 //# sourceMappingURL=contestRoutes.js.map
