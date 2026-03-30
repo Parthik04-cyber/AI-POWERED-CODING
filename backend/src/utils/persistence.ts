@@ -48,6 +48,7 @@ export const mapUserRow = (
   isPremium: Boolean(row.is_premium),
   premiumPlan: row.premium_plan || undefined,
   premiumExpiresAt: toDate(row.premium_expires_at),
+  trialStartedAt: toDate(row.trial_started_at),
   dailyLoginStreak: Number(row.daily_login_streak || 0),
   codingStreak: Number(row.coding_streak || 0),
   lastDailyLoginAt: toDate(row.last_daily_login_at),
@@ -264,14 +265,14 @@ export const createUser = async (
       INSERT INTO users (
         id, username, email, password, full_name, role, profile_image, bio,
         problems_solved, total_submissions, score, coins, is_premium, premium_plan,
-        premium_expires_at, daily_login_streak, coding_streak, last_daily_login_at,
+        premium_expires_at, trial_started_at, daily_login_streak, coding_streak, last_daily_login_at,
         last_solved_problem_at, last_lucky_spin_at, badges, created_at, updated_at
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18,
-        $19, $20, $21, NOW(), NOW()
+        $15, $16, $17, $18, $19,
+        $20, $21, $22, NOW(), NOW()
       )
       RETURNING *
     `,
@@ -291,6 +292,7 @@ export const createUser = async (
       data.isPremium || false,
       data.premiumPlan || null,
       data.premiumExpiresAt || null,
+      data.trialStartedAt || null,
       data.dailyLoginStreak || 0,
       data.codingStreak || 0,
       data.lastDailyLoginAt || null,
@@ -335,12 +337,13 @@ export const saveUser = async (user: IUser, client?: PoolClient): Promise<IUser>
         is_premium = $13,
         premium_plan = $14,
         premium_expires_at = $15,
-        daily_login_streak = $16,
-        coding_streak = $17,
-        last_daily_login_at = $18,
-        last_solved_problem_at = $19,
-        last_lucky_spin_at = $20,
-        badges = $21,
+        trial_started_at = $16,
+        daily_login_streak = $17,
+        coding_streak = $18,
+        last_daily_login_at = $19,
+        last_solved_problem_at = $20,
+        last_lucky_spin_at = $21,
+        badges = $22,
         updated_at = NOW()
       WHERE id = $1
     `,
@@ -360,6 +363,7 @@ export const saveUser = async (user: IUser, client?: PoolClient): Promise<IUser>
       user.isPremium || false,
       user.premiumPlan || null,
       user.premiumExpiresAt || null,
+      user.trialStartedAt || null,
       user.dailyLoginStreak || 0,
       user.codingStreak || 0,
       user.lastDailyLoginAt || null,

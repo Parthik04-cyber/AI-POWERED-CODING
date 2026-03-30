@@ -2,8 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/admin/analytics": "pages/admin/analytics.js",
-  "/admin/settings": "pages/admin/settings.js",
-  "/admin/login": "pages/admin/login.js",
-  "/login": "pages/login.js"
+  "/problems/[id]": "pages/problems/[id].js",
+  "/problems": "pages/problems.js",
+  "/editor/[id]": "pages/editor/[id].js"
 }

@@ -154,6 +154,7 @@ const initializeSchema = async () => {
         is_premium BOOLEAN NOT NULL DEFAULT FALSE,
         premium_plan TEXT CHECK (premium_plan IN ('monthly', 'yearly')),
         premium_expires_at TIMESTAMPTZ,
+        trial_started_at TIMESTAMPTZ,
         daily_login_streak INTEGER NOT NULL DEFAULT 0,
         coding_streak INTEGER NOT NULL DEFAULT 0,
         last_daily_login_at TIMESTAMPTZ,
@@ -300,6 +301,7 @@ const initializeSchema = async () => {
     `,
         `ALTER TABLE contests ADD COLUMN IF NOT EXISTS participants_target INTEGER NOT NULL DEFAULT 0`,
         `ALTER TABLE contests ADD COLUMN IF NOT EXISTS problem_count INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ`,
         `
       CREATE TABLE IF NOT EXISTS discussions (
         id TEXT PRIMARY KEY,

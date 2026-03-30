@@ -3,8 +3,9 @@ import { createHash, randomBytes } from 'crypto';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { IUser } from '../models/User';
 import { query, withTransaction } from '../config/database';
-import { createUser, emailOrUsernameExists, generateId, getUserByEmail, getUserById, mapUserRow } from '../utils/persistence';
+import { createUser, emailOrUsernameExists, generateId, getUserByEmail, getUserById, mapUserRow, saveUser } from '../utils/persistence';
 import emailService from './emailService';
+import { ensureTrialStarted, getUserAccessState } from './accessService';
 
 export interface AuthResponse {
   user: {
@@ -17,6 +18,10 @@ export interface AuthResponse {
     codingStreak: number;
     isPremium: boolean;
     premiumExpiresAt?: Date;
+    trialStartedAt?: Date;
+    trialEndsAt?: Date;
+    hasActiveAccess: boolean;
+    accessStatus: 'subscribed' | 'trial' | 'expired';
     badges: string[];
   };
   token: string;
@@ -94,6 +99,11 @@ class AuthService {
       role: 'user',
     });
 
+    if (ensureTrialStarted(user)) {
+      await saveUser(user);
+    }
+
+    const accessState = getUserAccessState(user);
     const token = this.generateToken(user._id, user.email, user.role);
 
     return {
@@ -107,6 +117,10 @@ class AuthService {
         codingStreak: user.codingStreak || 0,
         isPremium: !!user.isPremium,
         premiumExpiresAt: user.premiumExpiresAt,
+        trialStartedAt: user.trialStartedAt,
+        trialEndsAt: accessState.trialEndsAt,
+        hasActiveAccess: accessState.hasAccess,
+        accessStatus: accessState.status,
         badges: user.badges || [],
       },
       token,
@@ -120,6 +134,11 @@ class AuthService {
       throw new Error('Invalid email or password');
     }
 
+    if (ensureTrialStarted(user)) {
+      await saveUser(user);
+    }
+
+    const accessState = getUserAccessState(user);
     const token = this.generateToken(user._id, user.email, user.role);
 
     return {
@@ -133,6 +152,10 @@ class AuthService {
         codingStreak: user.codingStreak || 0,
         isPremium: !!user.isPremium,
         premiumExpiresAt: user.premiumExpiresAt,
+        trialStartedAt: user.trialStartedAt,
+        trialEndsAt: accessState.trialEndsAt,
+        hasActiveAccess: accessState.hasAccess,
+        accessStatus: accessState.status,
         badges: user.badges || [],
       },
       token,

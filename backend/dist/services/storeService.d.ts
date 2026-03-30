@@ -1,5 +1,4 @@
 import { TransactionType } from '../models/StoreTransaction';
-type PremiumPlan = 'monthly' | 'yearly';
 type ActivityType = 'contest' | 'interview';
 type StoreSection = 'redeem' | 'premium';
 interface StoreCatalogItem {
@@ -31,6 +30,10 @@ declare class StoreService {
             isPremium: boolean;
             premiumPlan: "monthly" | "yearly" | null;
             premiumExpiresAt: Date | null;
+            trialStartedAt: Date | null;
+            trialEndsAt: Date | null;
+            hasActiveAccess: boolean;
+            accessStatus: import("./accessService").AccessStatus;
             dailyLoginStreak: number;
             codingStreak: number;
             badges: string[];
@@ -66,11 +69,12 @@ declare class StoreService {
         coins: number;
         item: StoreCatalogItem;
     }>;
-    subscribePremium(userId: string, plan: PremiumPlan): Promise<{
+    subscribePremium(userId: string): Promise<{
         message: string;
         coins: number;
         premiumPlan: "monthly" | "yearly" | undefined;
         premiumExpiresAt: Date | undefined;
+        amountInr: number;
         premiumFeatures: string[];
     }>;
     claimDailyLoginReward(userId: string): Promise<{

@@ -14,6 +14,7 @@ export interface IUser {
     isPremium: boolean;
     premiumPlan?: 'monthly' | 'yearly';
     premiumExpiresAt?: Date;
+    trialStartedAt?: Date;
     dailyLoginStreak: number;
     codingStreak: number;
     lastDailyLoginAt?: Date;

@@ -11,7 +11,12 @@ export interface User {
   coins?: number;
   codingStreak?: number;
   isPremium?: boolean;
+  premiumPlan?: 'monthly' | 'yearly';
   premiumExpiresAt?: string;
+  trialStartedAt?: string;
+  trialEndsAt?: string;
+  hasActiveAccess?: boolean;
+  accessStatus?: 'subscribed' | 'trial' | 'expired';
   badges?: string[];
 }
 

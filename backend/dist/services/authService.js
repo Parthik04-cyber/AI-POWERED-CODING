@@ -9,6 +9,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const database_1 = require("../config/database");
 const persistence_1 = require("../utils/persistence");
 const emailService_1 = __importDefault(require("./emailService"));
+const accessService_1 = require("./accessService");
 class AuthService {
     constructor() {
         this.minimumPasswordLength = 8;
@@ -68,6 +69,10 @@ class AuthService {
             fullName,
             role: 'user',
         });
+        if ((0, accessService_1.ensureTrialStarted)(user)) {
+            await (0, persistence_1.saveUser)(user);
+        }
+        const accessState = (0, accessService_1.getUserAccessState)(user);
         const token = this.generateToken(user._id, user.email, user.role);
         return {
             user: {
@@ -80,6 +85,10 @@ class AuthService {
                 codingStreak: user.codingStreak || 0,
                 isPremium: !!user.isPremium,
                 premiumExpiresAt: user.premiumExpiresAt,
+                trialStartedAt: user.trialStartedAt,
+                trialEndsAt: accessState.trialEndsAt,
+                hasActiveAccess: accessState.hasAccess,
+                accessStatus: accessState.status,
                 badges: user.badges || [],
             },
             token,
@@ -90,6 +99,10 @@ class AuthService {
         if (!user || !user.password || !(await bcrypt_1.default.compare(password, user.password))) {
             throw new Error('Invalid email or password');
         }
+        if ((0, accessService_1.ensureTrialStarted)(user)) {
+            await (0, persistence_1.saveUser)(user);
+        }
+        const accessState = (0, accessService_1.getUserAccessState)(user);
         const token = this.generateToken(user._id, user.email, user.role);
         return {
             user: {
@@ -102,6 +115,10 @@ class AuthService {
                 codingStreak: user.codingStreak || 0,
                 isPremium: !!user.isPremium,
                 premiumExpiresAt: user.premiumExpiresAt,
+                trialStartedAt: user.trialStartedAt,
+                trialEndsAt: accessState.trialEndsAt,
+                hasActiveAccess: accessState.hasAccess,
+                accessStatus: accessState.status,
                 badges: user.badges || [],
             },
             token,

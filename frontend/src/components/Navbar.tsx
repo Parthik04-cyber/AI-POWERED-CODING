@@ -15,6 +15,19 @@ const navLinks = [
   { href: '/store', label: 'Store' },
 ];
 
+const landingNavLinks = [
+  { href: '#explore', label: 'Explore' },
+  { href: '#problems', label: 'Problems' },
+  { href: '#contests', label: 'Contests' },
+  { href: '#interview', label: 'Interview' },
+  { href: '#discuss', label: 'Discuss' },
+  { href: '#pricing', label: 'Pricing' },
+];
+
+interface NavbarProps {
+  variant?: 'default' | 'landing';
+}
+
 interface NotificationItem {
   id: string;
   title: string;
@@ -23,7 +36,7 @@ interface NotificationItem {
   read: boolean;
 }
 
-const Navbar: React.FC = () => {
+const Navbar: React.FC<NavbarProps> = ({ variant = 'default' }) => {
   const router = useRouter();
   const { user, token, logout } = useAuthStore();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -116,6 +129,49 @@ const Navbar: React.FC = () => {
     setNotificationsOpen(false);
   };
 
+  if (variant === 'landing') {
+    return (
+      <nav className="sticky top-0 mb-0 w-full bg-white border-b border-[#E5E7EB] z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-[70px] flex items-center justify-between gap-4">
+            <div className="shrink-0">
+              <Link href="/" className="text-2xl font-bold text-slate-900 tracking-tight">
+                CodeMaster
+              </Link>
+            </div>
+
+            <div className="hidden md:flex items-center gap-7">
+              {landingNavLinks.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="text-[15px] font-medium text-[#374151] hover:text-[#2563EB] transition-colors duration-200"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2 sm:gap-3">
+              <Link
+                href="/login"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-[15px] font-medium text-[#374151] hover:text-[#2563EB] rounded-lg transition-colors duration-200"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-2 rounded-lg bg-[#2563EB] text-white text-sm sm:text-[15px] font-semibold hover:bg-blue-700 transition-colors duration-200"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm shadow-navbar border-b border-slate-100 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -139,28 +195,30 @@ const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Center: Search */}
-          <div className="flex-1 flex justify-center px-2">
-            <div className="relative w-52">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9 3a6 6 0 104.472 10.001l3.263 3.264a1 1 0 001.414-1.414l-3.264-3.263A6 6 0 009 3zm-4 6a4 4 0 118 0 4 4 0 01-8 0z"
-                  clipRule="evenodd"
+          {/* Center: Search (dashboard only for authenticated users) */}
+          {token && user && (
+            <div className="flex-1 flex justify-center px-2">
+              <div className="relative w-52">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M9 3a6 6 0 104.472 10.001l3.263 3.264a1 1 0 001.414-1.414l-3.264-3.263A6 6 0 009 3zm-4 6a4 4 0 118 0 4 4 0 01-8 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search problems"
+                  className="w-full h-8 pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-accent"
                 />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search problems"
-                className="w-full h-8 pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-accent"
-              />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Right: Icons + Buttons */}
           <div className="flex items-center gap-1 shrink-0">

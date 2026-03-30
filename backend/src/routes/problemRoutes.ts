@@ -4,10 +4,10 @@ import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/', problemController.getAllProblems);
-router.get('/categories', problemController.getCategories);
-router.get('/stats', problemController.getProblemStats);
-router.get('/:id', problemController.getProblemById);
+router.get('/', authMiddleware, problemController.getAllProblems);
+router.get('/categories', authMiddleware, problemController.getCategories);
+router.get('/stats', authMiddleware, problemController.getProblemStats);
+router.get('/:id', authMiddleware, problemController.getProblemById);
 
 router.post('/', authMiddleware, adminMiddleware, problemController.createProblem);
 router.put('/:id', authMiddleware, adminMiddleware, problemController.updateProblem);

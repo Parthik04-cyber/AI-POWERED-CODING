@@ -10,7 +10,7 @@ import { useEditorStore, useAuthStore } from '@/utils/store';
 const EditorPage: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
-  const { user } = useAuthStore();
+  const { token, initialized } = useAuthStore();
   const { code, language, output, isRunning, setCode, setLanguage, setOutput, setIsRunning } = useEditorStore();
 
   const [problem, setProblem] = useState<any>(null);
@@ -19,20 +19,27 @@ const EditorPage: React.FC = () => {
   const [testResults, setTestResults] = useState<any>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    if (!initialized) {
       return;
     }
-    loadProblem();
-  }, [id, user, router]);
 
-  const loadProblem = async () => {
+    if (!token) {
+      const nextPath = typeof router.asPath === 'string' ? router.asPath : `/editor/${id}`;
+      void router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+      return;
+    }
+
     if (!id || typeof id !== 'string') {
       return;
     }
 
+    void loadProblem(id);
+  }, [id, initialized, token, router]);
+
+  const loadProblem = async (problemId: string) => {
     try {
-      const { data } = await problemAPI.getProblemById(id);
+      setIsLoading(true);
+      const { data } = await problemAPI.getProblemById(problemId);
       setProblem(data);
       if (!code) {
         setCode(getTemplateCode(language));
@@ -137,48 +144,75 @@ const EditorPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Problem Description */}
-          <div className="bg-dark-secondary border border-dark-tertiary rounded-lg p-6 overflow-y-auto max-h-screen">
-            <h1 className="text-3xl font-bold mb-4">{problem.title}</h1>
-            <div className="flex gap-2 mb-6">
-              <span className="px-3 py-1 rounded bg-blue-900 text-blue-200">{problem.difficulty}</span>
-              <span className="px-3 py-1 rounded bg-gray-900 text-gray-300">{problem.category}</span>
-            </div>
+      <div className="mx-auto w-full max-w-[1600px] px-3 py-4 sm:px-5 lg:px-6 lg:py-5">
+        <div className="grid grid-cols-1 gap-4 lg:h-[calc(100vh-9.5rem)] lg:grid-cols-[minmax(420px,1fr)_minmax(520px,1.25fr)]">
+          {/* Problem Panel */}
+          <section className="flex min-h-0 flex-col rounded-2xl border border-dark-tertiary bg-dark-secondary text-gray-100 shadow-card">
+            <header className="border-b border-dark-tertiary px-5 py-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-900 px-3 py-1 text-xs font-semibold text-blue-200">{problem.difficulty}</span>
+                <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">{problem.category}</span>
+              </div>
+              <h1 className="text-2xl font-bold leading-tight text-white md:text-3xl">{problem.title}</h1>
+            </header>
 
-            <h2 className="text-xl font-bold mb-4">Description</h2>
-            <p className="text-gray-300 mb-6">{problem.description}</p>
-
-            <h2 className="text-xl font-bold mb-4">Examples</h2>
-            <div className="space-y-4 mb-6">
-              {problem.examples?.map((example: any, idx: number) => (
-                <div key={idx} className="bg-dark p-4 rounded border border-dark-tertiary">
-                  <p className="font-mono text-sm mb-2">
-                    <span className="text-green-400">Input:</span> {example.input}
-                  </p>
-                  <p className="font-mono text-sm">
-                    <span className="text-blue-400">Output:</span> {example.output}
-                  </p>
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+              <section>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">Description</h2>
+                <div className="rounded-xl border border-dark-tertiary bg-dark px-4 py-3">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-100">{problem.description}</p>
                 </div>
-              ))}
+              </section>
+
+              <section>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">Examples</h2>
+                <div className="space-y-3">
+                  {problem.examples?.length ? (
+                    problem.examples.map((example: any, idx: number) => (
+                      <article key={idx} className="rounded-xl border border-dark-tertiary bg-dark p-4">
+                        <p className="mb-2 font-mono text-xs text-gray-100 sm:text-sm">
+                          <span className="font-semibold text-emerald-300">Input:</span> {example.input}
+                        </p>
+                        <p className="font-mono text-xs text-gray-100 sm:text-sm">
+                          <span className="font-semibold text-sky-300">Output:</span> {example.output}
+                        </p>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dark-tertiary bg-dark px-4 py-3 text-sm text-slate-300">
+                      No examples available for this problem.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">Constraints</h2>
+                <div className="rounded-xl border border-dark-tertiary bg-dark px-4 py-3">
+                  {problem.constraints?.length ? (
+                    <ul className="space-y-2 text-sm text-gray-100">
+                      {problem.constraints.map((constraint: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                          <span className="mt-1 text-xs text-slate-400">•</span>
+                          <span>{constraint}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-300">No constraints provided.</p>
+                  )}
+                </div>
+              </section>
             </div>
+          </section>
 
-            <h2 className="text-xl font-bold mb-4">Constraints</h2>
-            <ul className="list-disc list-inside space-y-2 text-gray-300">
-              {problem.constraints?.map((constraint: string, idx: number) => (
-                <li key={idx}>{constraint}</li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Code Editor */}
-          <div className="flex flex-col h-screen">
-            <div className="flex gap-4 mb-4">
+          {/* Editor Panel */}
+          <section className="flex min-h-0 flex-col rounded-2xl border border-dark-tertiary bg-dark-secondary text-gray-100 shadow-card">
+            <header className="flex flex-wrap items-center gap-3 border-b border-dark-tertiary px-4 py-3">
               <select
                 value={language}
                 onChange={handleLanguageChange}
-                className="px-4 py-2 border border-dark-tertiary rounded-lg bg-dark-secondary text-white"
+                className="min-w-[150px] rounded-lg border border-dark-tertiary bg-dark px-3 py-2 text-sm text-white"
               >
                 <option value="javascript">JavaScript</option>
                 <option value="python">Python</option>
@@ -189,7 +223,7 @@ const EditorPage: React.FC = () => {
               <button
                 onClick={handleRunCode}
                 disabled={isRunning}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
                 {isRunning ? 'Running...' : 'Run Code'}
               </button>
@@ -197,13 +231,13 @@ const EditorPage: React.FC = () => {
               <button
                 onClick={handleSubmit}
                 disabled={isRunning}
-                className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
               >
                 {isRunning ? 'Submitting...' : 'Submit'}
               </button>
-            </div>
+            </header>
 
-            <div className="flex-1 border border-dark-tertiary rounded-lg overflow-hidden mb-4">
+            <div className="min-h-0 flex-1 border-b border-dark-tertiary">
               <Editor
                 height="100%"
                 language={language}
@@ -218,33 +252,46 @@ const EditorPage: React.FC = () => {
               />
             </div>
 
-            <textarea
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Optional stdin for Run Code"
-              className="w-full mb-4 h-20 px-3 py-2 bg-dark-secondary border border-dark-tertiary rounded-lg text-sm"
-            />
-
-            <div className="bg-dark-secondary border border-dark-tertiary rounded-lg p-4 max-h-40 overflow-y-auto">
-              <h3 className="font-bold mb-2">Output</h3>
-              <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap break-words">{output || 'Run your code to see output...'}</pre>
-              {testResults && (
-                <div className="mt-4 pt-4 border-t border-dark-tertiary">
-                  <p className="text-sm">
-                    Tests Passed: <span className={testResults.status === 'SUCCESS' ? 'text-green-400' : 'text-red-400'}>{testResults.testsPassed}/{testResults.totalTests}</span>
-                  </p>
-                  {testResults.aiFeedback && (
-                    <div className="mt-2 text-sm text-gray-300">
-                      <p>{testResults.aiFeedback.complexity}</p>
-                      {(testResults.aiFeedback.suggestions || []).length > 0 && (
-                        <p className="mt-1">- {(testResults.aiFeedback.suggestions || []).join('\n- ')}</p>
-                      )}
-                    </div>
-                  )}
+            <div className="grid items-stretch gap-3 p-4 md:grid-cols-2">
+              <div className="rounded-xl border border-dark-tertiary bg-dark p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-300">Input</h3>
+                  <span className="text-[11px] text-slate-400">stdin</span>
                 </div>
-              )}
+                <textarea
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  placeholder={'Enter custom input for your program. Example:\n3\n1 2 3'}
+                  className="h-36 w-full resize-none rounded-lg border border-dark-tertiary bg-dark-secondary px-3 py-2 text-sm text-gray-100 placeholder:text-slate-400"
+                />
+                <p className="mt-2 text-[11px] text-slate-400">Used when you click Run Code. Leave empty if no input is required.</p>
+              </div>
+
+              <div className="rounded-xl border border-dark-tertiary bg-dark p-3">
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">Output</h3>
+                <pre className="h-36 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-dark-tertiary bg-dark-secondary p-2 text-xs font-mono text-gray-100 sm:text-sm">{output || 'Run your code to see output and test feedback here.'}</pre>
+
+                {testResults && (
+                  <div className="mt-3 border-t border-dark-tertiary pt-3">
+                    <p className="text-sm text-gray-100">
+                      Tests Passed:{' '}
+                      <span className={testResults.status === 'SUCCESS' ? 'text-emerald-400' : 'text-rose-400'}>
+                        {testResults.testsPassed}/{testResults.totalTests}
+                      </span>
+                    </p>
+                    {testResults.aiFeedback && (
+                      <div className="mt-2 space-y-1 text-xs text-slate-200 sm:text-sm">
+                        <p>{testResults.aiFeedback.complexity}</p>
+                        {(testResults.aiFeedback.suggestions || []).length > 0 && (
+                          <p className="whitespace-pre-wrap">- {(testResults.aiFeedback.suggestions || []).join('\n- ')}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </Layout>

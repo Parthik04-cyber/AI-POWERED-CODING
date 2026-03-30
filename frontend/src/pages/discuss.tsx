@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Layout from '@/layouts/MainLayout';
 import { useAuthStore } from '@/utils/store';
@@ -37,211 +37,7 @@ interface Post {
   company?: string;
 }
 
-interface BuddyProfile {
-  name: string;
-  handle: string;
-  topics: string[];
-  level: string;
-  streak: number;
-  avatarColor: string;
-  initials: string;
-  online: boolean;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const BANNERS = [
-  {
-    id: 1,
-    title: 'Spring Coding Challenge 2026',
-    subtitle: 'Compete, learn, and win prizes in our biggest contest yet',
-    cta: 'Join Now',
-    gradient: 'from-violet-600 via-purple-600 to-indigo-600',
-    badge: 'LIVE',
-  },
-  {
-    id: 2,
-    title: 'AI-Powered Problem Recommendations',
-    subtitle: 'Let our AI guide your learning path based on your skill level',
-    cta: 'Try It',
-    gradient: 'from-cyan-500 via-blue-600 to-indigo-600',
-    badge: 'NEW',
-  },
-  {
-    id: 3,
-    title: 'Interview Prep Bootcamp',
-    subtitle: '30-day structured plan to crack FAANG interviews',
-    cta: 'Start Plan',
-    gradient: 'from-emerald-500 via-teal-600 to-cyan-600',
-    badge: 'POPULAR',
-  },
-];
-
-const CATEGORIES = ['For You', 'Career', 'Contest', 'Compensation', 'Feedback', 'Interview'];
-
-const INITIAL_POSTS: Post[] = [
-  {
-    id: '1',
-    author: 'Priya Sharma',
-    authorHandle: 'priya_codes',
-    avatarColor: 'bg-violet-500',
-    initials: 'PS',
-    title: 'How I cracked Google L5 after 3 attempts — my honest experience',
-    description:
-      'After two failed attempts, I completely restructured my prep. Here\'s what actually worked: focusing on patterns, not problems. I solved 150 problems but from only 15 pattern categories...',
-    upvotes: 2841,
-    comments: 347,
-    views: 64200,
-    timestamp: '2h ago',
-    category: 'Interview',
-    tags: ['Google', 'L5', 'System Design', 'Behavioral'],
-    isUpvoted: false,
-    type: 'interview',
-    company: 'Google',
-  },
-  {
-    id: '2',
-    author: 'Alex Chen',
-    authorHandle: 'alexc_dev',
-    avatarColor: 'bg-blue-500',
-    initials: 'AC',
-    title: 'Poll: What\'s your preferred programming language for competitive coding?',
-    description: 'Curious about the community\'s preference. Each language has its trade-offs — Python for readability, C++ for speed, Java for its standard library...',
-    upvotes: 1203,
-    comments: 189,
-    views: 28700,
-    timestamp: '5h ago',
-    category: 'Contest',
-    tags: ['Poll', 'Languages', 'Competitive'],
-    isUpvoted: true,
-    type: 'poll',
-    poll: [
-      { text: 'C++', votes: 4821 },
-      { text: 'Python', votes: 3102 },
-      { text: 'Java', votes: 1544 },
-      { text: 'JavaScript', votes: 876 },
-      { text: 'Go', votes: 302 },
-    ],
-  },
-  {
-    id: '3',
-    author: 'Marcus Williams',
-    authorHandle: 'marcusw',
-    avatarColor: 'bg-emerald-500',
-    initials: 'MW',
-    title: 'My solution for Two Sum using HashMap achieves O(n) — discussion',
-    description:
-      'I noticed many people still use the O(n²) brute force approach. Let me walk through the HashMap approach which reduces it to a single pass. The key insight is storing complements...',
-    upvotes: 934,
-    comments: 112,
-    views: 18900,
-    timestamp: '8h ago',
-    category: 'For You',
-    tags: ['Two Sum', 'HashMap', 'O(n)', 'Easy'],
-    isUpvoted: false,
-    type: 'solution',
-    linkedProblem: 'Two Sum',
-  },
-  {
-    id: '4',
-    author: 'Neha Gupta',
-    authorHandle: 'neha_g',
-    avatarColor: 'bg-pink-500',
-    initials: 'NG',
-    title: 'Meta E4 → E5 compensation breakdown (full details)',
-    description:
-      'TC: $380K. Here\'s the split: Base $185K, Stock $150K/yr (4yr vest, refreshes after 2yr), Bonus $45K target. Negotiated by having a competing Amazon offer, meta moved up 15%...',
-    upvotes: 4102,
-    comments: 523,
-    views: 95300,
-    timestamp: '1d ago',
-    category: 'Compensation',
-    tags: ['Meta', 'E5', 'TC', 'Negotiation'],
-    isUpvoted: false,
-    type: 'discussion',
-    company: 'Meta',
-  },
-  {
-    id: '5',
-    author: 'Sam Park',
-    authorHandle: 'sampark',
-    avatarColor: 'bg-amber-500',
-    initials: 'SP',
-    title: 'Looking for DSA buddy — targeting Tier-1 SWE roles this Fall',
-    description:
-      'Currently working through Blind 75 + NeetCode 150. Need someone to review each other\'s solutions daily, do mock interviews weekly, and stay accountable. Available evenings IST...',
-    upvotes: 287,
-    comments: 64,
-    views: 5400,
-    timestamp: '2d ago',
-    category: 'Career',
-    tags: ['Buddy Finder', 'DSA', 'Mock Interview', 'FAANG'],
-    isUpvoted: false,
-    type: 'discussion',
-  },
-  {
-    id: '6',
-    author: 'Lisa Torres',
-    authorHandle: 'lisatc',
-    avatarColor: 'bg-teal-500',
-    initials: 'LT',
-    title: 'Feedback on CodeMaster\'s new AI hint system — feature request',
-    description:
-      'The AI hints are great but I wish there were difficulty levels (subtle nudge vs full explanation). Also it would be amazing to see hints for follow-up questions like "can you do better than O(n log n)?"...',
-    upvotes: 756,
-    comments: 94,
-    views: 12100,
-    timestamp: '3d ago',
-    category: 'Feedback',
-    tags: ['Feature Request', 'AI Hints', 'UX'],
-    isUpvoted: false,
-    type: 'discussion',
-  },
-];
-
-const TRENDING_TOPICS = [
-  { tag: 'System Design', posts: 2841, hot: true },
-  { tag: 'Dynamic Programming', posts: 2103, hot: true },
-  { tag: 'Two Pointers', posts: 1876, hot: false },
-  { tag: 'Meta Interview', posts: 1654, hot: true },
-  { tag: 'Google L5', posts: 1421, hot: false },
-  { tag: 'LC Hard', posts: 1284, hot: false },
-  { tag: 'Graphs', posts: 989, hot: false },
-];
-
-const INTERVIEW_DISCUSSIONS = [
-  { title: 'Amazon OA 2026 — leaked questions (be prepared)', views: '42K', category: 'Amazon' },
-  { title: 'Bloomberg SDE2 process — 6 rounds breakdown', views: '18K', category: 'Bloomberg' },
-  { title: 'Stripe L4 — coding round was completely different this year', views: '35K', category: 'Stripe' },
-];
-
-const CAREER_DISCUSSIONS = [
-  { title: 'SWE at FAANG vs startup — honest 5-yr comparison', views: '61K' },
-  { title: 'Switching from SWE to ML — is it worth it in 2026?', views: '28K' },
-  { title: 'Remote-first jobs that still pay top dollar', views: '44K' },
-];
-
-const COMPANY_DISCUSSIONS = [
-  { name: 'Google', count: 1284, color: 'text-blue-600 bg-blue-50' },
-  { name: 'Meta', count: 987, color: 'text-indigo-600 bg-indigo-50' },
-  { name: 'Amazon', count: 1105, color: 'text-orange-600 bg-orange-50' },
-  { name: 'Microsoft', count: 876, color: 'text-green-600 bg-green-50' },
-  { name: 'Apple', count: 654, color: 'text-slate-600 bg-slate-100' },
-  { name: 'Stripe', count: 421, color: 'text-purple-600 bg-purple-50' },
-];
-
-const BUDDY_PROFILES: BuddyProfile[] = [
-  { name: 'Raj Patel', handle: 'rajp', topics: ['Trees', 'Graphs', 'DP'], level: 'Intermediate', streak: 34, avatarColor: 'bg-violet-500', initials: 'RP', online: true },
-  { name: 'Emily Zhang', handle: 'emilyz', topics: ['Arrays', 'Strings', 'Sliding Window'], level: 'Beginner', streak: 12, avatarColor: 'bg-pink-500', initials: 'EZ', online: true },
-  { name: 'David Kim', handle: 'davidk', topics: ['System Design', 'OOP', 'Heaps'], level: 'Advanced', streak: 89, avatarColor: 'bg-cyan-500', initials: 'DK', online: false },
-  { name: 'Ananya Roy', handle: 'ananya', topics: ['Binary Search', 'Backtracking'], level: 'Intermediate', streak: 21, avatarColor: 'bg-emerald-500', initials: 'AR', online: true },
-];
-
-const AI_SUGGESTIONS: Record<string, string> = {
-  '1': "Based on your question about cracking Google L5, I suggest focusing on: (1) **Pattern recognition** — master 15 core patterns rather than memorizing solutions; (2) **System design at scale** — practice designing systems for 100M+ users; (3) **Behavioral alignment** — map every STAR story to Google's leadership principles. Resources: Grokking the System Design Interview + Alex Xu's System Design Vol. 2.",
-  '3': "For the Two Sum HashMap approach: the key insight is **using the complement as a hash key**. Store `target - num` as you scan. Time: O(n), Space: O(n). You can also do O(1) space with two-pointer on sorted array if you can modify input or use indices. Follow-up: if the array is sorted, two-pointer is strictly better. If multiple pairs needed, adjust accordingly.",
-  default: "I've analyzed this post and here are my suggestions: Focus on the core algorithmic pattern being discussed. Consider edge cases like empty inputs, duplicates, and overflow. If this is a system design question, think about scalability, consistency, and availability trade-offs. Would you like me to elaborate on any specific aspect?",
-};
+const DEFAULT_CATEGORY = 'All';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -322,12 +118,13 @@ const PollCard: React.FC<{
 interface CreatePostModalProps {
   onClose: () => void;
   onSubmit: (post: Partial<Post>) => void;
+  categories: string[];
 }
 
-const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSubmit }) => {
+const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSubmit, categories }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('For You');
+  const [category, setCategory] = useState(categories[0] || 'General');
   const [type, setType] = useState<PostType>('discussion');
   const [tags, setTags] = useState('');
   const [company, setCompany] = useState('');
@@ -398,7 +195,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSubmit }) 
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
             >
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
 
@@ -528,187 +325,6 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSubmit }) 
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-};
-
-// ─── DSA Buddy Finder Panel ───────────────────────────────────────────────────
-
-const BuddyFinderPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [level, setLevel] = useState('All');
-  const [topic, setTopic] = useState('');
-  const [requestedId, setRequestedId] = useState<string | null>(null);
-
-  const filtered = BUDDY_PROFILES.filter(
-    (b) =>
-      (level === 'All' || b.level === level) &&
-      (!topic || b.topics.some((t) => t.toLowerCase().includes(topic.toLowerCase())))
-  );
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <span>🤝</span> DSA Buddy Finder
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Find a coding partner for daily practice</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
-            <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="px-6 py-4 space-y-4">
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap">
-            {['All', 'Beginner', 'Intermediate', 'Advanced'].map((l) => (
-              <button
-                key={l}
-                onClick={() => setLevel(l)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  level === l ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Filter by topic (e.g. DP, Trees)..."
-            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-          />
-
-          {/* Profiles */}
-          <div className="space-y-3">
-            {filtered.length === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-sm">No buddies found. Try different filters.</p>
-            ) : (
-              filtered.map((buddy) => (
-                <div key={buddy.handle} className="flex items-start gap-3 p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className={`w-10 h-10 rounded-full ${buddy.avatarColor} flex items-center justify-center text-white font-bold text-sm shrink-0 relative`}>
-                    {buddy.initials}
-                    {buddy.online && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-slate-900">{buddy.name}</span>
-                      <span className="text-xs text-slate-400">@{buddy.handle}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        buddy.level === 'Advanced' ? 'bg-purple-100 text-purple-700' :
-                        buddy.level === 'Intermediate' ? 'bg-blue-100 text-blue-700' :
-                        'bg-emerald-100 text-emerald-700'
-                      }`}>
-                        {buddy.level}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {buddy.topics.map((t) => (
-                        <span key={t} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{t}</span>
-                      ))}
-                    </div>
-                    <p className="text-xs text-amber-600 mt-1.5">🔥 {buddy.streak}-day streak</p>
-                  </div>
-                  <button
-                    onClick={() => setRequestedId(buddy.handle)}
-                    disabled={requestedId === buddy.handle}
-                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      requestedId === buddy.handle
-                        ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {requestedId === buddy.handle ? '✓ Requested' : 'Connect'}
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── AI Suggestion Modal ──────────────────────────────────────────────────────
-
-const AIModal: React.FC<{ post: Post; onClose: () => void }> = ({ post, onClose }) => {
-  const [loading, setLoading] = useState(true);
-  const [suggestion, setSuggestion] = useState('');
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSuggestion(AI_SUGGESTIONS[post.id] || AI_SUGGESTIONS.default);
-      setLoading(false);
-    }, 1400);
-    return () => clearTimeout(timer);
-  }, [post.id]);
-
-  const formatted = suggestion.split('**').map((part, i) =>
-    i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
-  );
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">AI Answer Suggestion</h3>
-              <p className="text-xs text-slate-400">Powered by CodeMaster AI</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
-            <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="px-6 py-5">
-          <p className="text-xs text-slate-500 mb-3 font-medium">For: <span className="text-slate-700">{post.title}</span></p>
-          {loading ? (
-            <div className="flex flex-col items-center gap-3 py-8">
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-slate-400">Analyzing and generating suggestions...</p>
-            </div>
-          ) : (
-            <div className="prose prose-sm max-w-none">
-              <p className="text-sm text-slate-700 leading-relaxed">{formatted}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 pb-4 flex gap-2">
-          <button className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50">
-            Not Helpful
-          </button>
-          <button className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-xs font-semibold hover:bg-violet-700">
-            Helpful ✓
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -861,10 +477,9 @@ const ReportModal: React.FC<{
 const PostCard: React.FC<{
   post: Post;
   onUpvote: (id: string) => void;
-  onAI: (post: Post) => void;
   onVote: (postId: string, optionIdx: number) => void;
   onReport: (post: Post) => void;
-}> = ({ post, onUpvote, onAI, onVote, onReport }) => {
+}> = ({ post, onUpvote, onVote, onReport }) => {
   const TYPE_COLORS: Record<PostType, string> = {
     discussion: 'bg-slate-100 text-slate-600',
     poll: 'bg-amber-100 text-amber-700',
@@ -969,16 +584,6 @@ const PostCard: React.FC<{
         <div className="flex-1" />
 
         <button
-          onClick={() => onAI(post)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-200 text-xs font-medium text-violet-700 hover:from-violet-100 hover:to-blue-100 transition-all"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-          AI Suggest
-        </button>
-
-        <button
           onClick={() => onReport(post)}
           className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
           title="Report this post"
@@ -998,23 +603,20 @@ const DiscussPage: React.FC = () => {
   const { user } = useAuthStore();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [trendingTopics, setTrendingTopics] = useState(TRENDING_TOPICS);
-  const [activeCategory, setActiveCategory] = useState('For You');
-  const [activeBanner, setActiveBanner] = useState(0);
+  const [trendingTopics, setTrendingTopics] = useState<Array<{ tag: string; posts: number }>>([]);
+  const [categories, setCategories] = useState<string[]>([DEFAULT_CATEGORY]);
+  const [activeCategory, setActiveCategory] = useState(DEFAULT_CATEGORY);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showBuddyFinder, setShowBuddyFinder] = useState(false);
-  const [aiPost, setAiPost] = useState<Post | null>(null);
   const [reportPost, setReportPost] = useState<Post | null>(null);
   const [search, setSearch] = useState('');
-  const bannerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Load posts from API
   const loadPosts = useCallback(async () => {
     setLoadingPosts(true);
     try {
       const res = await discussAPI.getPosts({
-        category: activeCategory !== 'For You' ? activeCategory : undefined,
-        limit: 30,
+        limit: 100,
       });
       const serverPosts: Post[] = (res.data?.posts || []).map((p: any) => ({
         id: p.id,
@@ -1036,15 +638,18 @@ const DiscussPage: React.FC = () => {
         linkedProblem: p.linkedProblem || undefined,
         company: p.company || undefined,
       }));
-      // If API returns data, use it; otherwise fall back to INITIAL_POSTS
-      setPosts(serverPosts.length > 0 ? serverPosts : INITIAL_POSTS);
+      setPosts(serverPosts);
+      const derivedCategories = Array.from(
+        new Set(serverPosts.map((post) => post.category).filter(Boolean))
+      );
+      setCategories([DEFAULT_CATEGORY, ...derivedCategories]);
     } catch {
-      // Gracefully fall back to static mock data when backend is unreachable
-      setPosts(INITIAL_POSTS);
+      setPosts([]);
+      setCategories([DEFAULT_CATEGORY]);
     } finally {
       setLoadingPosts(false);
     }
-  }, [activeCategory]);
+  }, []);
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
 
@@ -1058,15 +663,8 @@ const DiscussPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  // Auto-rotate banners
-  useEffect(() => {
-    bannerTimer.current = setInterval(() => {
-      setActiveBanner((prev) => (prev + 1) % BANNERS.length);
-    }, 4000);
-    return () => { if (bannerTimer.current) clearInterval(bannerTimer.current); };
-  }, []);
-
   const handleUpvote = async (id: string) => {
+    if (!user) return;
     // Optimistic update
     setPosts((prev) =>
       prev.map((p) =>
@@ -1075,23 +673,21 @@ const DiscussPage: React.FC = () => {
           : p
       )
     );
-    if (user) {
-      try {
-        const res = await discussAPI.upvotePost(id);
-        const { upvotes, isUpvoted } = res.data;
-        setPosts((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, upvotes, isUpvoted } : p))
-        );
-      } catch {
-        // Revert optimistic update on failure
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === id
-              ? { ...p, isUpvoted: !p.isUpvoted, upvotes: p.isUpvoted ? p.upvotes - 1 : p.upvotes + 1 }
-              : p
-          )
-        );
-      }
+    try {
+      const res = await discussAPI.upvotePost(id);
+      const { upvotes, isUpvoted } = res.data;
+      setPosts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, upvotes, isUpvoted } : p))
+      );
+    } catch {
+      // Revert optimistic update on failure
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, isUpvoted: !p.isUpvoted, upvotes: p.isUpvoted ? p.upvotes - 1 : p.upvotes + 1 }
+            : p
+        )
+      );
     }
   };
 
@@ -1115,131 +711,64 @@ const DiscussPage: React.FC = () => {
   };
 
   const handleCreatePost = async (newPost: Partial<Post>) => {
-    if (user) {
-      try {
-        const res = await discussAPI.createPost({
-          title: newPost.title || '',
-          description: newPost.description || '',
-          category: newPost.category || 'For You',
-          type: newPost.type,
-          tags: newPost.tags,
-          company: newPost.company,
-          pollOptions: newPost.poll?.map((o) => o.text),
-        });
-        const created: Post = {
-          id: res.data.id,
-          author: res.data.author,
-          authorHandle: res.data.authorHandle,
-          avatarColor: res.data.avatarColor || 'bg-slate-500',
-          initials: res.data.initials || (user.username || 'AN').slice(0, 2).toUpperCase(),
-          upvotes: 0,
-          comments: 0,
-          views: 0,
-          timestamp: 'just now',
-          isUpvoted: false,
-          title: res.data.title,
-          description: res.data.description,
-          category: res.data.category,
-          tags: res.data.tags || [],
-          type: (res.data.type || 'discussion') as PostType,
-          poll: res.data.poll,
-          company: res.data.company,
-          linkedProblem: res.data.linkedProblem,
-        };
-        setPosts((prev) => [created, ...prev]);
-      } catch {
-        // Fallback: add locally even if API fails
-        const post: Post = {
-          id: String(Date.now()),
-          author: user.fullName || user.username,
-          authorHandle: user.username?.toLowerCase() || 'anon',
-          avatarColor: 'bg-slate-500',
-          initials: (user.username || 'AN').slice(0, 2).toUpperCase(),
-          upvotes: 0, comments: 0, views: 0,
-          timestamp: 'just now',
-          isUpvoted: false,
-          ...newPost,
-          title: newPost.title || '',
-          description: newPost.description || '',
-          category: newPost.category || 'For You',
-          tags: newPost.tags || [],
-          type: (newPost.type as PostType) || 'discussion',
-        };
-        setPosts((prev) => [post, ...prev]);
-      }
-    } else {
-      // Not logged in — just add locally (will be rejected by API anyway)
-      const post: Post = {
-        id: String(Date.now()),
-        author: 'Anonymous',
-        authorHandle: 'anon',
-        avatarColor: 'bg-slate-500',
-        initials: 'AN',
-        upvotes: 0, comments: 0, views: 0,
-        timestamp: 'just now',
-        isUpvoted: false,
-        ...newPost,
+    if (!user) {
+      setCreateError('Please sign in to create a post.');
+      return;
+    }
+
+    try {
+      setCreateError(null);
+      const res = await discussAPI.createPost({
         title: newPost.title || '',
         description: newPost.description || '',
-        category: newPost.category || 'For You',
-        tags: newPost.tags || [],
-        type: (newPost.type as PostType) || 'discussion',
+        category: newPost.category || 'General',
+        type: newPost.type,
+        tags: newPost.tags,
+        company: newPost.company,
+        pollOptions: newPost.poll?.map((o) => o.text),
+      });
+      const created: Post = {
+        id: res.data.id,
+        author: res.data.author,
+        authorHandle: res.data.authorHandle,
+        avatarColor: res.data.avatarColor || 'bg-slate-500',
+        initials: res.data.initials || (user.username || 'AN').slice(0, 2).toUpperCase(),
+        upvotes: 0,
+        comments: 0,
+        views: 0,
+        timestamp: 'just now',
+        isUpvoted: false,
+        title: res.data.title,
+        description: res.data.description,
+        category: res.data.category,
+        tags: res.data.tags || [],
+        type: (res.data.type || 'discussion') as PostType,
+        poll: res.data.poll,
+        company: res.data.company,
+        linkedProblem: res.data.linkedProblem,
       };
-      setPosts((prev) => [post, ...prev]);
+      setPosts((prev) => [created, ...prev]);
+      setShowCreateModal(false);
+    } catch (err: any) {
+      setCreateError(err?.response?.data?.error || 'Failed to create post.');
     }
-    setShowCreateModal(false);
   };
 
   const filteredPosts = posts.filter((p) => {
+    const matchesCategory = activeCategory === DEFAULT_CATEGORY || p.category === activeCategory;
     const matchesSearch =
       !search ||
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.description.toLowerCase().includes(search.toLowerCase()) ||
       p.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
-    return matchesSearch;
+    return matchesCategory && matchesSearch;
   });
 
-  const banner = BANNERS[activeBanner];
+  const createModalCategories = categories.filter((cat) => cat !== DEFAULT_CATEGORY);
 
   return (
     <Layout>
       <div className="min-h-full bg-slate-50">
-        {/* ── Featured Banner ────────────────────────────────────────────── */}
-        <div className={`relative bg-gradient-to-r ${banner.gradient} overflow-hidden`}>
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white -translate-y-1/2 translate-x-1/4" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white translate-y-1/2 -translate-x-1/4" />
-          </div>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4 relative">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-bold rounded-full tracking-wider">
-                  {banner.badge}
-                </span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">{banner.title}</h1>
-              <p className="text-white/80 text-sm mt-1">{banner.subtitle}</p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <button className="px-4 py-2 bg-white text-slate-800 text-sm font-semibold rounded-xl hover:bg-white/90 transition-colors shadow-md">
-                {banner.cta}
-              </button>
-            </div>
-          </div>
-          {/* Dot indicators */}
-          <div className="flex justify-center gap-1.5 pb-3">
-            {BANNERS.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveBanner(i)}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  i === activeBanner ? 'bg-white w-4' : 'bg-white/40'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
         {/* ── Main Content ───────────────────────────────────────────────── */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex gap-6">
 
@@ -1273,7 +802,7 @@ const DiscussPage: React.FC = () => {
 
             {/* Category Tabs */}
             <div className="flex gap-1 overflow-x-auto pb-1 mb-5 scrollbar-hide">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -1288,44 +817,9 @@ const DiscussPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Special Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-              {/* Buddy Finder */}
-              <button
-                onClick={() => setShowBuddyFinder(true)}
-                className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 hover:shadow-sm transition-all text-left"
-              >
-                <span className="text-2xl">🤝</span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">DSA Buddy Finder</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Find a practice partner</p>
-                </div>
-              </button>
-
-              {/* Interview Experience */}
-              <button
-                onClick={() => setActiveCategory('Interview')}
-                className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 hover:border-amber-200 hover:shadow-sm transition-all text-left"
-              >
-                <span className="text-2xl">🏢</span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Company Experiences</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Read & share interviews</p>
-                </div>
-              </button>
-
-              {/* Coding Poll */}
-              <button
-                onClick={() => { setShowCreateModal(true); }}
-                className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 hover:border-emerald-200 hover:shadow-sm transition-all text-left"
-              >
-                <span className="text-2xl">📊</span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Create a Poll</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Survey the community</p>
-                </div>
-              </button>
-            </div>
+            {createError && (
+              <p className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{createError}</p>
+            )}
 
             {/* Post Feed */}
             {loadingPosts ? (
@@ -1359,7 +853,6 @@ const DiscussPage: React.FC = () => {
                     key={post.id}
                     post={post}
                     onUpvote={handleUpvote}
-                    onAI={setAiPost}
                     onVote={handleVote}
                     onReport={setReportPost}
                   />
@@ -1395,86 +888,11 @@ const DiscussPage: React.FC = () => {
                     <span className="text-xs text-slate-400">{topic.posts.toLocaleString()}</span>
                   </button>
                 ))}
+                {trendingTopics.length === 0 && (
+                  <p className="text-xs text-slate-400">No trending data available.</p>
+                )}
               </div>
             </div>
-
-            {/* Interview Discussions */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span className="text-base">🎤</span> Interview Discussions
-              </h3>
-              <div className="space-y-3">
-                {INTERVIEW_DISCUSSIONS.map((item) => (
-                  <button
-                    key={item.title}
-                    onClick={() => setActiveCategory('Interview')}
-                    className="w-full text-left group"
-                  >
-                    <p className="text-xs font-medium text-slate-700 group-hover:text-blue-600 transition-colors line-clamp-2 leading-relaxed">
-                      {item.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{item.category}</span>
-                      <span className="text-xs text-slate-400">{item.views} views</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Career Discussions */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span className="text-base">💼</span> Career Discussions
-              </h3>
-              <div className="space-y-3">
-                {CAREER_DISCUSSIONS.map((item) => (
-                  <button
-                    key={item.title}
-                    onClick={() => setActiveCategory('Career')}
-                    className="w-full text-left group"
-                  >
-                    <p className="text-xs font-medium text-slate-700 group-hover:text-blue-600 transition-colors line-clamp-2 leading-relaxed">
-                      {item.title}
-                    </p>
-                    <span className="text-xs text-slate-400">{item.views} views</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Company Discussions */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <span className="text-base">🏢</span> Company Discussions
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {COMPANY_DISCUSSIONS.map((co) => (
-                  <button
-                    key={co.name}
-                    onClick={() => setSearch(co.name)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity ${co.color}`}
-                  >
-                    {co.name}
-                    <span className="opacity-60">{co.count}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* DSA Buddy CTA */}
-            <button
-              onClick={() => setShowBuddyFinder(true)}
-              className="bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-4 text-white text-left hover:opacity-95 transition-opacity"
-            >
-              <p className="text-sm font-bold mb-1">🤝 Find Your DSA Buddy</p>
-              <p className="text-xs text-white/80 leading-relaxed">
-                Connect with developers at your level and practice DSA daily.
-              </p>
-              <span className="inline-block mt-2 text-xs font-semibold bg-white/20 px-3 py-1 rounded-full">
-                Browse {BUDDY_PROFILES.length} online →
-              </span>
-            </button>
           </aside>
         </div>
 
@@ -1483,13 +901,8 @@ const DiscussPage: React.FC = () => {
           <CreatePostModal
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreatePost}
+            categories={createModalCategories.length > 0 ? createModalCategories : ['General']}
           />
-        )}
-        {showBuddyFinder && (
-          <BuddyFinderPanel onClose={() => setShowBuddyFinder(false)} />
-        )}
-        {aiPost && (
-          <AIModal post={aiPost} onClose={() => setAiPost(null)} />
         )}
         {reportPost && (
           <ReportModal

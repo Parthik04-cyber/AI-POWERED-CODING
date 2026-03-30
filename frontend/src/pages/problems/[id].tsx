@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '@/layouts/MainLayout';
 import { problemAPI } from '@/services/api';
@@ -11,6 +10,7 @@ const ProblemDetailPage: React.FC = () => {
   const { id } = router.query;
   const [problem, setProblem] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (!id || typeof id !== 'string') {
@@ -19,6 +19,14 @@ const ProblemDetailPage: React.FC = () => {
 
     loadProblem(id);
   }, [id]);
+
+  useEffect(() => {
+    if (!problem?._id) {
+      return;
+    }
+
+    void router.prefetch(`/editor/${problem._id}`);
+  }, [problem?._id, router]);
 
   const loadProblem = async (problemId: string) => {
     try {
@@ -29,6 +37,20 @@ const ProblemDetailPage: React.FC = () => {
       console.error('Failed to load problem details:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSolveInEditor = async () => {
+    if (!problem?._id || isNavigating) {
+      return;
+    }
+
+    try {
+      setIsNavigating(true);
+      await router.push(`/editor/${problem._id}`);
+    } catch (error) {
+      console.error('Failed to navigate to editor:', error);
+      setIsNavigating(false);
     }
   };
 
@@ -58,24 +80,26 @@ const ProblemDetailPage: React.FC = () => {
         </div>
 
         <h2 className="text-xl font-bold mb-3">Description</h2>
-        <p className="text-gray-300 mb-6">{problem.description}</p>
+        <p className="text-gray-800 mb-6">{problem.description}</p>
 
         <h2 className="text-xl font-bold mb-3">Examples</h2>
         <div className="space-y-3 mb-8">
           {(problem.examples || []).map((example: any, index: number) => (
             <div key={index} className="bg-dark-secondary border border-dark-tertiary rounded p-4">
-              <p className="font-mono text-sm mb-1">Input: {example.input}</p>
-              <p className="font-mono text-sm">Output: {example.output}</p>
+              <p className="font-mono text-sm mb-1 text-white">Input: {example.input}</p>
+              <p className="font-mono text-sm text-white">Output: {example.output}</p>
             </div>
           ))}
         </div>
 
-        <Link
-          href={`/editor/${problem._id}`}
-          className="inline-block px-6 py-3 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg"
+        <button
+          type="button"
+          onClick={handleSolveInEditor}
+          disabled={isNavigating}
+          className="inline-block px-6 py-3 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
         >
-          Solve In Editor
-        </Link>
+          {isNavigating ? 'Opening Editor...' : 'Solve In Editor'}
+        </button>
       </div>
     </Layout>
   );

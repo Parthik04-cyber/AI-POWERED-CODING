@@ -32,7 +32,9 @@ const Login: React.FC = () => {
       setUser(data.user);
       setToken(data.token);
 
-      router.push(data.user?.role === 'admin' ? '/admin/dashboard' : '/problems');
+      const nextPath = typeof router.query.next === 'string' ? router.query.next : '';
+      const safeNextPath = nextPath.startsWith('/') ? nextPath : '/problems';
+      router.push(data.user?.role === 'admin' ? '/admin/dashboard' : safeNextPath);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {

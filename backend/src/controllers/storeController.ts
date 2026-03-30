@@ -57,13 +57,7 @@ export const subscribePremium = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const { plan } = req.body;
-    if (!plan || !['monthly', 'yearly'].includes(plan)) {
-      res.status(400).json({ error: 'Valid plan is required: monthly or yearly' });
-      return;
-    }
-
-    const result = await storeService.subscribePremium(req.user.userId, plan);
+    const result = await storeService.subscribePremium(req.user.userId);
     res.status(200).json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

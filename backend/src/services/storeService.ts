@@ -2,8 +2,8 @@ import { IUser } from '../models/User';
 import { TransactionType } from '../models/StoreTransaction';
 import { query, withTransaction } from '../config/database';
 import { generateId, getUserById, mapStoreTransactionRow, saveUser } from '../utils/persistence';
+import { getNextMonthlyExpiry, getUserAccessState } from './accessService';
 
-type PremiumPlan = 'monthly' | 'yearly';
 type ActivityType = 'contest' | 'interview';
 type StoreSection = 'redeem' | 'premium';
 
@@ -40,16 +40,9 @@ const LUCKY_SPIN_REWARDS = [0, 5, 10, 15, 25, 50, 75];
 const DEFAULT_STORE_ITEMS: Array<Omit<StoreCatalogItem, 'isActive'>> = [
   {
     id: 'premium-monthly',
-    title: 'Premium Subscription - Monthly',
-    description: 'Unlock premium features for one month.',
-    cost: 120,
-    section: 'premium',
-  },
-  {
-    id: 'premium-yearly',
-    title: 'Premium Subscription - Yearly',
-    description: 'Best value yearly premium plan.',
-    cost: 1200,
+    title: 'CodeMaster Subscription - Monthly',
+    description: 'Full platform access for 30 days.',
+    cost: 499,
     section: 'premium',
   },
   {
@@ -283,11 +276,17 @@ class StoreService {
   }
 
   private toSafeUserState(user: IUser) {
+    const accessState = getUserAccessState(user);
+
     return {
       coins: user.coins || 0,
       isPremium: !!user.isPremium,
       premiumPlan: user.premiumPlan || null,
       premiumExpiresAt: user.premiumExpiresAt || null,
+      trialStartedAt: user.trialStartedAt || null,
+      trialEndsAt: accessState.trialEndsAt || null,
+      hasActiveAccess: accessState.hasAccess,
+      accessStatus: accessState.status,
       dailyLoginStreak: user.dailyLoginStreak || 0,
       codingStreak: user.codingStreak || 0,
       badges: user.badges || [],
@@ -415,13 +414,13 @@ class StoreService {
     });
   }
 
-  async subscribePremium(userId: string, plan: PremiumPlan) {
-    const planItemId = `premium-${plan}`;
+  async subscribePremium(userId: string) {
+    const planItemId = 'premium-monthly';
 
     return withTransaction(async (client) => {
       const planItem = await this.getCatalogItemById(planItemId, client);
       if (!planItem || !planItem.isActive || planItem.section !== 'premium') {
-        throw new Error(`Premium ${plan} plan is not available`);
+        throw new Error('Monthly subscription plan is not available');
       }
 
       const user = await getUserById(userId, { client });
@@ -429,22 +428,12 @@ class StoreService {
         throw new Error('User not found');
       }
 
-      if ((user.coins || 0) < planItem.cost) {
-        throw new Error('Not enough coins for this premium plan');
-      }
-
       const now = new Date();
       const baseDate = user.premiumExpiresAt && user.premiumExpiresAt > now ? user.premiumExpiresAt : now;
-      const nextExpiry = new Date(baseDate);
-      if (plan === 'monthly') {
-        nextExpiry.setMonth(nextExpiry.getMonth() + 1);
-      } else {
-        nextExpiry.setFullYear(nextExpiry.getFullYear() + 1);
-      }
+      const nextExpiry = getNextMonthlyExpiry(baseDate);
 
-      user.coins = (user.coins || 0) - planItem.cost;
       user.isPremium = true;
-      user.premiumPlan = plan;
+      user.premiumPlan = 'monthly';
       user.premiumExpiresAt = nextExpiry;
       this.updateAchievementBadges(user);
       const persistedUser = await saveUser(user, client);
@@ -453,18 +442,19 @@ class StoreService {
         userId,
         'premium_purchase',
         planItem.title,
-        -planItem.cost,
+        0,
         persistedUser.coins,
         planItem.id,
-        { plan, expiresAt: nextExpiry.toISOString() },
+        { plan: 'monthly', amountInr: 499, expiresAt: nextExpiry.toISOString() },
         client
       );
 
       return {
-        message: 'Premium activated successfully',
+        message: 'Subscription activated successfully',
         coins: persistedUser.coins,
         premiumPlan: persistedUser.premiumPlan,
         premiumExpiresAt: persistedUser.premiumExpiresAt,
+        amountInr: 499,
         premiumFeatures: [
           'AI code review',
           'Premium interview questions',

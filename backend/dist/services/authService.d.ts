@@ -10,6 +10,10 @@ export interface AuthResponse {
         codingStreak: number;
         isPremium: boolean;
         premiumExpiresAt?: Date;
+        trialStartedAt?: Date;
+        trialEndsAt?: Date;
+        hasActiveAccess: boolean;
+        accessStatus: 'subscribed' | 'trial' | 'expired';
         badges: string[];
     };
     token: string;

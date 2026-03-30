@@ -6,25 +6,12 @@ import Layout from '@/layouts/MainLayout';
 import { problemAPI } from '@/services/api';
 import { useProblemStore, useAuthStore } from '@/utils/store';
 
-const TOPICS = [
-  'Array', 'String', 'Hash Table', 'Math', 'Dynamic Programming',
-  'Sorting', 'Greedy', 'Depth-First Search', 'Binary Search', 'Tree',
-  'Matrix', 'Two Pointers', 'Bit Manipulation', 'Stack', 'Graph',
-];
-
-const FILTERS = ['All Topics', 'Algorithms', 'Database', 'Shell', 'JavaScript'];
-
-const TRENDING_COMPANIES = [
-  { name: 'Google', count: 287, color: 'bg-blue-100 text-blue-700' },
-  { name: 'Amazon', count: 241, color: 'bg-orange-100 text-orange-700' },
-  { name: 'Microsoft', count: 198, color: 'bg-green-100 text-green-700' },
-  { name: 'Meta', count: 175, color: 'bg-blue-100 text-blue-800' },
-  { name: 'Apple', count: 143, color: 'bg-slate-100 text-slate-700' },
-];
-
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-
-const solvedDays = new Set([1, 3, 5, 8, 10, 12, 15, 16, 19, 22]);
+type ProblemDifficultyStat = {
+  _id: string;
+  count: number;
+  totalSubmissions: number;
+  totalAccepted: number;
+};
 
 const getDifficultyStyle = (difficulty: string) => {
   switch (difficulty) {
@@ -41,7 +28,9 @@ const Problems: React.FC = () => {
 
   const [loadError, setLoadError]   = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All Topics');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [stats, setStats] = useState<ProblemDifficultyStat[]>([]);
   const [search, setSearch]         = useState('');
   const [sortBy, setSortBy]         = useState<'default' | 'acceptance' | 'difficulty'>('default');
   const [skip, setSkip]             = useState(0);
@@ -51,13 +40,30 @@ const Problems: React.FC = () => {
 
   useEffect(() => {
     loadProblems();
-  }, [difficulty, skip]);
+  }, [difficulty, selectedCategory, skip]);
+
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const [categoriesRes, statsRes] = await Promise.all([
+          problemAPI.getCategories(),
+          problemAPI.getStats(),
+        ]);
+        setCategories(Array.isArray(categoriesRes.data?.categories) ? categoriesRes.data.categories : []);
+        setStats(Array.isArray(statsRes.data?.stats) ? statsRes.data.stats : []);
+      } catch {
+        setCategories([]);
+        setStats([]);
+      }
+    };
+    loadMetadata();
+  }, []);
 
   const loadProblems = async () => {
     try {
       setIsLoading(true);
       setLoadError(null);
-      const { data } = await problemAPI.getAllProblems(skip, limit, difficulty);
+      const { data } = await problemAPI.getAllProblems(skip, limit, difficulty, selectedCategory || undefined);
       if (!Array.isArray(data?.problems)) throw new Error('Unexpected API response');
       setProblems(data.problems);
       setTotal(typeof data.total === 'number' ? data.total : data.problems.length);
@@ -91,6 +97,12 @@ const Problems: React.FC = () => {
 
   const acceptanceRate = (p: any) =>
     p.submissionCount ? Math.round((p.acceptedCount / p.submissionCount) * 100) : 0;
+
+  const totalProblems = stats.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  const totalSubmissions = stats.reduce((sum, item) => sum + Number(item.totalSubmissions || 0), 0);
+  const totalAccepted = stats.reduce((sum, item) => sum + Number(item.totalAccepted || 0), 0);
+  const overallAcceptance = totalSubmissions > 0 ? Math.round((totalAccepted / totalSubmissions) * 100) : 0;
+  const latestProblem = filtered[0];
 
   return (
     <Layout>
@@ -136,31 +148,29 @@ const Problems: React.FC = () => {
         <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 py-5">
 
-            {/* Topic chips */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {TOPICS.map((t) => (
+            {/* Category chips */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              <button
+                onClick={() => { setSelectedCategory(''); setSkip(0); }}
+                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                  !selectedCategory
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-slate-100 hover:bg-blue-100 hover:text-blue-700 text-slate-600'
+                }`}
+              >
+                All Categories
+              </button>
+              {categories.map((category) => (
                 <button
-                  key={t}
-                  className="px-3 py-1 bg-slate-100 hover:bg-blue-100 hover:text-blue-700 text-slate-600 text-xs font-medium rounded-full transition-colors"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* Filter tabs */}
-            <div className="flex gap-1 mb-4 border-b border-slate-100 pb-1">
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setActiveFilter(f)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-t-md transition-colors ${
-                    activeFilter === f
-                      ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                      : 'text-slate-500 hover:text-slate-800'
+                  key={category}
+                  onClick={() => { setSelectedCategory(category); setSkip(0); }}
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-slate-100 hover:bg-blue-100 hover:text-blue-700 text-slate-600'
                   }`}
                 >
-                  {f}
+                  {category}
                 </button>
               ))}
             </div>
@@ -304,76 +314,64 @@ const Problems: React.FC = () => {
         {/* ── Right Sidebar ── */}
         <aside className="hidden xl:flex flex-col w-64 shrink-0 border-l border-slate-100 bg-white py-4 px-3 gap-5 overflow-y-auto">
 
-          {/* Daily Challenge */}
+          {/* Latest Problem */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Daily Challenge</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Latest Problem</p>
             <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-3">
-              {/* Mini calendar */}
-              <div className="grid grid-cols-7 gap-px mb-1">
-                {WEEKDAYS.map((d) => (
-                  <div key={d} className="text-center text-[10px] font-semibold text-slate-400">{d}</div>
-                ))}
-                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                  <div
-                    key={day}
-                    className={`text-center text-[11px] leading-5 rounded ${
-                      day === 12
-                        ? 'bg-blue-600 text-white font-bold'
-                        : solvedDays.has(day)
-                        ? 'bg-emerald-400 text-white'
-                        : 'text-slate-500 hover:bg-slate-100'
-                    }`}
-                  >
-                    {day}
+              {latestProblem ? (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 truncate">{latestProblem.title}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${getDifficultyStyle(latestProblem.difficulty)}`}>
+                      {latestProblem.difficulty}
+                    </span>
+                    <Link href={`/problems/${latestProblem._id}`} className="text-[11px] text-blue-600 font-semibold hover:underline">Solve →</Link>
                   </div>
-                ))}
-              </div>
-              <div className="mt-2 pt-2 border-t border-blue-100">
-                <p className="text-xs font-semibold text-slate-700 truncate">Two Sum</p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[11px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-full">Easy</span>
-                  <Link href="/problems" className="text-[11px] text-blue-600 font-semibold hover:underline">Solve →</Link>
                 </div>
-              </div>
+              ) : (
+                <p className="text-xs text-slate-500">No problems available.</p>
+              )}
             </div>
           </div>
 
-          {/* Trending Companies */}
+          {/* Problem Catalog */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Trending Companies</p>
-            <div className="space-y-2">
-              {TRENDING_COMPANIES.map(({ name, count, color }) => (
-                <div key={name} className="flex items-center justify-between">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>{name}</span>
-                  <span className="text-xs text-slate-400">{count} problems</span>
-                </div>
-              ))}
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Problem Catalog</p>
+            <div className="rounded-xl border border-slate-100 p-3 bg-slate-50">
+              <p className="text-2xl font-extrabold text-slate-800">{totalProblems}</p>
+              <p className="text-xs text-slate-500 mt-0.5">total problems from admin catalog</p>
             </div>
           </div>
 
-          {/* Weekly Progress */}
+          {/* Difficulty Stats */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Weekly Progress</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Difficulty Stats</p>
             <div className="space-y-2.5">
-              {[
-                { label: 'Easy', solved: 3, total: 5, color: 'bg-emerald-400' },
-                { label: 'Medium', solved: 2, total: 7, color: 'bg-amber-400' },
-                { label: 'Hard', solved: 0, total: 3, color: 'bg-red-400' },
-              ].map(({ label, solved, total: t, color }) => (
+              {stats.map((item) => {
+                const label = item._id || 'Unknown';
+                const accepted = Number(item.totalAccepted || 0);
+                const submissions = Number(item.totalSubmissions || 0);
+                const ratio = submissions > 0 ? (accepted / submissions) * 100 : 0;
+                const color = label === 'Easy' ? 'bg-emerald-400' : label === 'Medium' ? 'bg-amber-400' : 'bg-red-400';
+                return (
                 <div key={label}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-600 font-medium">{label}</span>
-                    <span className="text-slate-400">{solved}/{t}</span>
+                    <span className="text-slate-400">{item.count} problems</span>
                   </div>
                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${color} rounded-full`} style={{ width: `${t > 0 ? (solved / t) * 100 : 0}%` }} />
+                    <div className={`h-full ${color} rounded-full`} style={{ width: `${ratio}%` }} />
                   </div>
                 </div>
-              ))}
+                );
+              })}
+              {stats.length === 0 && (
+                <p className="text-xs text-slate-500">No stats available.</p>
+              )}
             </div>
             <div className="mt-3 p-2.5 bg-blue-50 rounded-lg text-center">
-              <p className="text-2xl font-extrabold text-blue-600">5</p>
-              <p className="text-xs text-slate-500 mt-0.5">problems solved this week</p>
+              <p className="text-2xl font-extrabold text-blue-600">{overallAcceptance}%</p>
+              <p className="text-xs text-slate-500 mt-0.5">overall acceptance rate</p>
             </div>
           </div>
 

@@ -59,12 +59,7 @@ const subscribePremium = async (req, res) => {
             res.status(401).json({ error: 'Unauthorized' });
             return;
         }
-        const { plan } = req.body;
-        if (!plan || !['monthly', 'yearly'].includes(plan)) {
-            res.status(400).json({ error: 'Valid plan is required: monthly or yearly' });
-            return;
-        }
-        const result = await storeService_1.default.subscribePremium(req.user.userId, plan);
+        const result = await storeService_1.default.subscribePremium(req.user.userId);
         res.status(200).json(result);
     }
     catch (error) {

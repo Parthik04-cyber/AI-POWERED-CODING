@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const database_1 = require("../config/database");
 const persistence_1 = require("../utils/persistence");
+const accessService_1 = require("./accessService");
 const PROBLEM_COIN_REWARDS = {
     Easy: 5,
     Medium: 10,
@@ -15,16 +16,9 @@ const LUCKY_SPIN_REWARDS = [0, 5, 10, 15, 25, 50, 75];
 const DEFAULT_STORE_ITEMS = [
     {
         id: 'premium-monthly',
-        title: 'Premium Subscription - Monthly',
-        description: 'Unlock premium features for one month.',
-        cost: 120,
-        section: 'premium',
-    },
-    {
-        id: 'premium-yearly',
-        title: 'Premium Subscription - Yearly',
-        description: 'Best value yearly premium plan.',
-        cost: 1200,
+        title: 'CodeMaster Subscription - Monthly',
+        description: 'Full platform access for 30 days.',
+        cost: 499,
         section: 'premium',
     },
     {
@@ -212,11 +206,16 @@ class StoreService {
         user.badges = Array.from(nextBadges);
     }
     toSafeUserState(user) {
+        const accessState = (0, accessService_1.getUserAccessState)(user);
         return {
             coins: user.coins || 0,
             isPremium: !!user.isPremium,
             premiumPlan: user.premiumPlan || null,
             premiumExpiresAt: user.premiumExpiresAt || null,
+            trialStartedAt: user.trialStartedAt || null,
+            trialEndsAt: accessState.trialEndsAt || null,
+            hasActiveAccess: accessState.hasAccess,
+            accessStatus: accessState.status,
             dailyLoginStreak: user.dailyLoginStreak || 0,
             codingStreak: user.codingStreak || 0,
             badges: user.badges || [],
@@ -311,41 +310,32 @@ class StoreService {
             };
         });
     }
-    async subscribePremium(userId, plan) {
-        const planItemId = `premium-${plan}`;
+    async subscribePremium(userId) {
+        const planItemId = 'premium-monthly';
         return (0, database_1.withTransaction)(async (client) => {
             const planItem = await this.getCatalogItemById(planItemId, client);
             if (!planItem || !planItem.isActive || planItem.section !== 'premium') {
-                throw new Error(`Premium ${plan} plan is not available`);
+                throw new Error('Monthly subscription plan is not available');
             }
             const user = await (0, persistence_1.getUserById)(userId, { client });
             if (!user) {
                 throw new Error('User not found');
             }
-            if ((user.coins || 0) < planItem.cost) {
-                throw new Error('Not enough coins for this premium plan');
-            }
             const now = new Date();
             const baseDate = user.premiumExpiresAt && user.premiumExpiresAt > now ? user.premiumExpiresAt : now;
-            const nextExpiry = new Date(baseDate);
-            if (plan === 'monthly') {
-                nextExpiry.setMonth(nextExpiry.getMonth() + 1);
-            }
-            else {
-                nextExpiry.setFullYear(nextExpiry.getFullYear() + 1);
-            }
-            user.coins = (user.coins || 0) - planItem.cost;
+            const nextExpiry = (0, accessService_1.getNextMonthlyExpiry)(baseDate);
             user.isPremium = true;
-            user.premiumPlan = plan;
+            user.premiumPlan = 'monthly';
             user.premiumExpiresAt = nextExpiry;
             this.updateAchievementBadges(user);
             const persistedUser = await (0, persistence_1.saveUser)(user, client);
-            await this.createTransaction(userId, 'premium_purchase', planItem.title, -planItem.cost, persistedUser.coins, planItem.id, { plan, expiresAt: nextExpiry.toISOString() }, client);
+            await this.createTransaction(userId, 'premium_purchase', planItem.title, 0, persistedUser.coins, planItem.id, { plan: 'monthly', amountInr: 499, expiresAt: nextExpiry.toISOString() }, client);
             return {
-                message: 'Premium activated successfully',
+                message: 'Subscription activated successfully',
                 coins: persistedUser.coins,
                 premiumPlan: persistedUser.premiumPlan,
                 premiumExpiresAt: persistedUser.premiumExpiresAt,
+                amountInr: 499,
                 premiumFeatures: [
                     'AI code review',
                     'Premium interview questions',

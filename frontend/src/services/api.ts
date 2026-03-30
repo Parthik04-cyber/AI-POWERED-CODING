@@ -34,8 +34,8 @@ api.interceptors.response.use(
     // Do not clear session for every 401. Some endpoints can return 401 for reasons
     // unrelated to token validity (for example role/route guards).
     if (status === 401 && hadToken && isTokenRejected) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -108,7 +108,7 @@ export const storeAPI = {
   ) => api.put(`/store/admin/catalog/${id}`, data),
   deleteCatalogItem: (id: string) => api.delete(`/store/admin/catalog/${id}`),
   redeemItem: (itemId: string) => api.post('/store/redeem', { itemId }),
-  subscribePremium: (plan: 'monthly' | 'yearly') => api.post('/store/premium/subscribe', { plan }),
+  subscribePremium: () => api.post('/store/premium/subscribe'),
   claimDailyLogin: () => api.post('/store/daily-login'),
   spinLuckyWheel: () => api.post('/store/lucky-spin'),
   rewardActivity: (activityType: 'contest' | 'interview', referenceId: string) =>
@@ -116,10 +116,11 @@ export const storeAPI = {
   getCoinLeaderboard: (limit = 20) => api.get('/store/coin-leaderboard', { params: { limit } }),
   getAchievements: () => api.get('/store/achievements'),
   getPremiumOverview: () => api.get('/store/overview'),
-  subscribePremiumPlan: (plan: 'monthly' | 'yearly') => api.post('/store/premium/subscribe', { plan }),
+  subscribePremiumPlan: () => api.post('/store/premium/subscribe'),
 };
 
 export const contestAPI = {
+  getContests: () => api.get('/contests'),
   getAdminOverview: () => api.get('/contests/admin/overview'),
 };
 

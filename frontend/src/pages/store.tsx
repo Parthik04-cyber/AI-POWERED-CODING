@@ -77,10 +77,11 @@ const StorePage: React.FC = () => {
           coins: data.user?.coins ?? user.coins,
           isPremium: data.user?.isPremium ?? user.isPremium,
           premiumExpiresAt: data.user?.premiumExpiresAt ?? user.premiumExpiresAt,
+          trialStartedAt: data.user?.trialStartedAt ?? user.trialStartedAt,
           badges: data.user?.badges ?? user.badges,
         };
         setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('user', JSON.stringify(updatedUser));
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load store');
@@ -216,16 +217,15 @@ const StorePage: React.FC = () => {
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {premiumPlans.map((plan) => {
-                    const isMonthly = plan.id.includes('monthly');
                     return (
                       <article key={plan.id} className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-                        <h3 className="font-semibold text-slate-900">{isMonthly ? 'Monthly Plan' : 'Yearly Plan'}</h3>
+                        <h3 className="font-semibold text-slate-900">Monthly Plan</h3>
                         <p className="text-sm text-slate-600 mt-1">{plan.description}</p>
                         <p className="mt-3 text-lg font-black text-amber-700">{plan.cost} coins</p>
                         <button
                           onClick={() =>
                             runAction(plan.id, () =>
-                              storeAPI.subscribePremium(isMonthly ? 'monthly' : 'yearly')
+                              storeAPI.subscribePremium()
                             )
                           }
                           disabled={processingItem === plan.id || (overview?.user?.coins || 0) < plan.cost}

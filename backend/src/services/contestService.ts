@@ -101,6 +101,12 @@ class ContestService {
       contests,
     };
   }
+
+  async getPublicContests(): Promise<{ contests: IContestAdminView[] }> {
+    const overview = await this.getAdminOverview();
+    const contests = overview.contests.filter((contest) => contest.status !== 'Draft');
+    return { contests };
+  }
 }
 
 export default new ContestService();
